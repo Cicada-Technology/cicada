@@ -1,0 +1,36 @@
+[package]
+name = "cicada-codegen-fixture"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+cicada-kernel = { workspace = true }
+cicada-audit = { workspace = true }
+cicada-macros = { workspace = true }
+cicada-web = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+sea-orm = { workspace = true }
+sea-orm-migration = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+# `src/lib.rs` 用 `include!` 引入 `fixtures/*.rs`（生成器的真实产物），machete 看不到
+# 这条路径上的 `use axum::` / `use chrono::`，会误报未使用。
+[package.metadata.cargo-machete]
+ignored = [
+    "axum",
+    "chrono",
+    "cicada-audit",
+    "cicada-kernel",
+    "cicada-macros",
+    "cicada-web",
+    "sea-orm",
+    "sea-orm-migration",
+    "serde",
+    "tracing",
+    "utoipa",
+]

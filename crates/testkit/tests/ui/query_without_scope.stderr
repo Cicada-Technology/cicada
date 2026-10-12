@@ -1,0 +1,10 @@
+error[E0599]: no method named `all` found for struct `Query<Entity>` in the current scope
+ --> tests/ui/query_without_scope.rs:9:47
+  |
+9 |     let _ = Query::<fixtures::Entity>::open().all(&42);
+  |                                               ^^^ method not found in `Query<Entity>`
+  |
+  = note: the method was found for
+          - `Query<E, scope::query::Global>`
+          - `Query<E, scope::query::Scoped>`
+          - `Query<E, scope::query::TenantBound>`

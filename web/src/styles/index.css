@@ -1,0 +1,9 @@
+/*!
+ * 样式入口。顺序有意义：
+ *   tokens（变量） → base（reset + 排版） → element-theme（重皮肤） → transitions（动效）
+ * transitions 必须最后：它要覆盖 Element Plus 自带的进出场动画。
+ */
+@import './tokens.css';
+@import './base.css';
+@import './element-theme.css';
+@import './transitions.css';

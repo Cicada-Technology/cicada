@@ -1,0 +1,139 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/kernel",
+    "crates/infra",
+    "crates/ports",
+    "crates/auth",
+    "crates/rbac",
+    "crates/audit",
+    "crates/storage",
+    "crates/notify",
+    "crates/codegen",
+    "crates/codegen/fixture",
+    "crates/system",
+    "crates/monitor",
+    "crates/jobs",
+    "crates/web",
+    "crates/worker",
+    "crates/macros",
+    "crates/all",
+    "crates/testkit",
+    "apps/server",
+    "apps/cli",
+    "migrations",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.98"
+
+[workspace.dependencies]
+# ---- 外部依赖：版本统一在此（2026-09-30 快照，实现时跟随稳定版并锁定 Cargo.lock）----
+# 下一阶段按需接入，先注释保留，避免脚手架阶段就拉取大量依赖：
+tokio              = { version = "1.53.1", features = ["macros", "rt-multi-thread", "signal", "net", "fs", "io-util", "sync"] }
+axum               = { version = "0.8.9", features = ["multipart"] }
+# tower              = "0.5.3"
+# tower-http 0.7 与 reqwest 已有的 0.6 会形成重复版本（依赖规则 cargo-deny），故锁 0.6。
+tower-http         = { version = "0.6", features = ["trace", "request-id", "set-header", "cors", "compression-gzip"] }
+http-body-util     = "0.1"
+# 只用于 `Body` 流的旁路记录（审计请求体，见 crates/web/src/audit.rs）。
+futures-util       = { version = "0.3.34", default-features = false, features = ["std"] }
+governor           = "0.10.4"
+# tower-governor     = "0.8.0"
+sea-orm            = { version = "2.0.4", features = ["macros", "runtime-tokio", "sqlx-postgres", "with-chrono", "with-uuid", "with-rust_decimal", "with-json"] }
+sea-orm-migration  = { version = "2.0.4", features = ["runtime-tokio", "sqlx-postgres", "with-chrono", "with-uuid", "with-rust_decimal", "with-json"] }
+sea-query          = "1.0.2"
+argon2             = "0.6.0"
+# 富文本入库前的白名单清洗，见 crates/system/src/rich_text.rs。
+ammonia            = "4.2.4"
+bcrypt             = "0.19.3"
+jsonwebtoken       = { version = "11.1.0", features = ["rust_crypto"] }
+redis              = { version = "1.7.1", features = ["tokio-comp", "connection-manager"] }
+moka               = { version = "0.12.16", features = ["sync"] }
+sha2               = "0.10.9"
+serde              = { version = "1.0.229", features = ["derive"] }
+serde_json         = "1"
+serde_path_to_error  = "0.1"
+chrono             = "0.4.45"
+uuid               = { version = "1.26.1", features = ["v4"] }
+rust_decimal       = "1.43.0"
+# config             = "0.15.27"
+tracing            = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+# 指标：`metrics` 是记录门面，exporter 只用渲染能力——
+# `/metrics` 由 web 侧自己出文本，不开 exporter 的 http-listener（少一个端口与 hyper 依赖）。
+metrics = "0.24.6"
+metrics-exporter-prometheus = { version = "0.18", default-features = false }
+serde_yaml         = "0.9"
+utoipa             = { version = "6.0.0", features = ["axum_extras", "chrono", "decimal", "uuid"] }
+utoipa-swagger-ui  = { version = "10.0.1", features = ["axum"] }
+# 链路：OTLP over HTTP/protobuf，只开 trace 通道，
+# 导出器复用已有的 reqwest（不引 tonic，避免重复的 hyper 栈）。
+opentelemetry           = "0.33.0"
+opentelemetry_sdk       = { version = "0.33.0", features = ["trace", "rt-tokio"] }
+opentelemetry-otlp      = { version = "0.33.0", default-features = false, features = ["trace", "http-proto", "reqwest-blocking-client"] }
+tracing-opentelemetry   = "0.34.0"
+# utoipa             = "6.0.0"
+# utoipa-swagger-ui  = "10.0.1"
+minijinja          = { version = "2.24.0", features = ["loader", "json"] }
+lettre             = { version = "0.11.23", default-features = false, features = [
+    # 技术选型：邮件走 lettre 的 SMTP transport。TLS 用 rustls，且显式选 aws-lc-rs——
+    # 与 reqwest 用的同一个 rustls provider，避免出现两个默认加密后端（rustls 会在这种情况下
+    # 直接拒绝取默认 provider）。`webpki-roots` 提供 Mozilla 根证书集，与部署的镜像一致。
+    "smtp-transport",
+    "tokio1-rustls",
+    "aws-lc-rs",
+    "webpki-roots",
+    "builder",
+    "hostname",
+    "pool",
+] }
+reqwest            = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# oauth2             = "5.0"
+opendal             = { version = "0.59.3", features = ["services-memory"] }
+# 0.59 起每个服务是独立 crate（opendal-core 只留 memory）：只引需要的三个。
+opendal-service-s3  = "0.59.3"
+opendal-service-oss = "0.59.3"
+rust_xlsxwriter    = { version = "0.99.1", features = ["constant_memory"] }
+calamine           = "0.36.1"
+tokio-cron-scheduler = "0.15.1"
+croner             = "3.0.0"
+apalis             = "0.7.4"
+apalis-sql         = { version = "0.7.4", default-features = false, features = ["postgres", "migrate", "tokio-comp"] }
+# lapin              = "4.12.0"
+captcha            = "1.0.0"
+totp-rs            = { version = "6.0.0", features = ["gen_secret", "otpauth"] }
+rust-i18n          = "4.2.4"
+zip                = { version = "8.6.0", default-features = false, features = ["deflate"] }
+log                = "0.4"
+thiserror          = "2.0"
+async-trait        = "0.1"
+sysinfo            = "0.39.6"
+
+# ---- 内部 crate（路径依赖统一引用，依赖方向见依赖规则）----
+cicada-kernel     = { path = "crates/kernel" }
+cicada-infra      = { path = "crates/infra" }
+cicada-ports      = { path = "crates/ports" }
+cicada-auth       = { path = "crates/auth" }
+cicada-rbac       = { path = "crates/rbac" }
+cicada-audit      = { path = "crates/audit" }
+cicada-storage    = { path = "crates/storage" }
+cicada-notify     = { path = "crates/notify" }
+cicada-codegen    = { path = "crates/codegen" }
+cicada-codegen-fixture = { path = "crates/codegen/fixture" }
+cicada-system     = { path = "crates/system" }
+cicada-monitor    = { path = "crates/monitor" }
+cicada-jobs       = { path = "crates/jobs" }
+cicada-web        = { path = "crates/web" }
+cicada-worker     = { path = "crates/worker" }
+cicada-macros     = { path = "crates/macros" }
+cicada            = { path = "crates/all" }
+cicada-testkit    = { path = "crates/testkit" }
+cicada-migrations = { path = "migrations" }
+
+[profile.release]
+lto = "thin"
+strip = true

@@ -1,0 +1,20 @@
+[package]
+name = "cicada-testkit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cicada-kernel = { workspace = true, features = ["testkit"] }
+cicada-infra = { workspace = true }
+cicada-macros = { workspace = true }
+sea-orm = { workspace = true }
+
+[dev-dependencies]
+trybuild = "1"
+tokio = { workspace = true }
+chrono = { workspace = true }
+cicada-system = { workspace = true }
+cicada-rbac = { workspace = true }
+cicada-migrations = { workspace = true }
+sea-orm-migration = { workspace = true }

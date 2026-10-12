@@ -1,0 +1,28 @@
+[package]
+name = "cicada-worker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cicada-kernel = { workspace = true }
+cicada-infra = { workspace = true }
+cicada-ports = { workspace = true }
+cicada-jobs = { workspace = true }
+metrics = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tokio-cron-scheduler = { workspace = true }
+apalis = { workspace = true }
+apalis-sql = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+chrono = { workspace = true }
+sea-orm = { workspace = true }
+sea-orm-migration = { workspace = true }
+cicada-migrations = { workspace = true }

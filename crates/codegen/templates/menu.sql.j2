@@ -1,0 +1,11 @@
+-- {{ function_name }} 菜单与按钮权限点（由 cicada 代码生成器产出）。
+-- 用前请把 :parent_id 换成上级目录的 menu_id；脚本幂等（按 perms 判重）。
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_time)
+SELECT '{{ function_name }}', :parent_id, 1, '{{ business_name }}', '{{ module_name }}/{{ business_name }}/index', 1, 0, 'C', '0', '0', '{{ perms[0] }}', 'build', now()
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE perms = '{{ perms[0] }}' AND menu_type = 'C');
+
+{% for p in perms %}INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, create_time)
+SELECT '{{ function_name }}{{ perm_labels[loop.index0] }}', (SELECT menu_id FROM sys_menu WHERE perms = '{{ perms[0] }}' AND menu_type = 'C'), {{ loop.index }}, '', '', 1, 0, 'F', '0', '0', '{{ p }}', now()
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE perms = '{{ p }}' AND menu_type = 'F');
+
+{% endfor %}

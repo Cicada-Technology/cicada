@@ -1,0 +1,199 @@
+use sea_orm_migration::prelude::*;
+
+/// 审计日志表：`sys_oper_log`（操作日志）+ `sys_logininfor`（登录日志）。
+///
+/// 属主 `system`。历史数据由兼容迁移一次性导入；
+/// 新数据经审计 sink 写入。
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[derive(DeriveIden)]
+enum SysOperLog {
+    Table,
+    OperId,
+    TenantId,
+    Title,
+    BusinessType,
+    Method,
+    RequestMethod,
+    OperatorType,
+    OperName,
+    DeptName,
+    OperUrl,
+    OperIp,
+    OperParam,
+    JsonResult,
+    Status,
+    ErrorMsg,
+    OperTime,
+    CostMs,
+}
+
+#[derive(DeriveIden)]
+enum SysLogininfor {
+    Table,
+    InfoId,
+    TenantId,
+    UserName,
+    Ipaddr,
+    LoginLocation,
+    Browser,
+    Os,
+    Status,
+    Msg,
+    LoginTime,
+}
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysOperLog::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysOperLog::OperId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysOperLog::TenantId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysOperLog::Title).string_len(64).not_null())
+                    .col(
+                        ColumnDef::new(SysOperLog::BusinessType)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysOperLog::Method)
+                            .string_len(256)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysOperLog::RequestMethod)
+                            .string_len(16)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysOperLog::OperatorType)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysOperLog::OperName).string_len(64).null())
+                    .col(ColumnDef::new(SysOperLog::DeptName).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysOperLog::OperUrl)
+                            .string_len(512)
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysOperLog::OperIp).string_len(128).null())
+                    .col(ColumnDef::new(SysOperLog::OperParam).text().null())
+                    .col(ColumnDef::new(SysOperLog::JsonResult).text().null())
+                    .col(
+                        ColumnDef::new(SysOperLog::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysOperLog::ErrorMsg).text().null())
+                    .col(
+                        ColumnDef::new(SysOperLog::OperTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysOperLog::CostMs)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_oper_log_tenant_time")
+                    .table(SysOperLog::Table)
+                    .col(SysOperLog::TenantId)
+                    .col(SysOperLog::OperTime)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysLogininfor::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysLogininfor::InfoId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysLogininfor::TenantId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysLogininfor::UserName)
+                            .string_len(64)
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysLogininfor::Ipaddr).string_len(128).null())
+                    .col(
+                        ColumnDef::new(SysLogininfor::LoginLocation)
+                            .string_len(128)
+                            .null(),
+                    )
+                    .col(ColumnDef::new(SysLogininfor::Browser).string_len(64).null())
+                    .col(ColumnDef::new(SysLogininfor::Os).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysLogininfor::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysLogininfor::Msg).text().null())
+                    .col(
+                        ColumnDef::new(SysLogininfor::LoginTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_logininfor_tenant_time")
+                    .table(SysLogininfor::Table)
+                    .col(SysLogininfor::TenantId)
+                    .col(SysLogininfor::LoginTime)
+                    .to_owned(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(SysLogininfor::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysOperLog::Table).to_owned())
+            .await?;
+        Ok(())
+    }
+}

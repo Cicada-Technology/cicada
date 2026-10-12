@@ -1,0 +1,33 @@
+[package]
+name = "cicada-infra"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cicada-kernel = { workspace = true }
+cicada-ports = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+serde_path_to_error = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+sea-orm = { workspace = true }
+redis = { workspace = true }
+metrics = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+async-trait = { workspace = true }
+governor = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+cicada-migrations = { workspace = true }
+sea-orm-migration = { workspace = true }

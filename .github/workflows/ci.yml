@@ -1,0 +1,232 @@
+# CI 流水线
+#
+#   fmt → clippy(-D warnings) → cargo doc → 依赖分层 → 单元测试 → 迁移往返
+#        → 集成测试(真实 PG/Redis) → OpenAPI 快照 → 依赖审计(deny / machete)
+#        → 模板工程渲染+编译 → 前端 → 镜像构建 + 冒烟
+#
+# 门禁与一一对应。依赖规则的依赖规则由两条独立检查守住：
+# `deploy/check_layering.py`（谁能依赖谁）与 `cargo deny`（许可证 / 已知漏洞 / 重复版本），
+# `cargo machete` 清未使用依赖（`include!` 与 derive 展开看不见的，写在各 crate 的
+# `[package.metadata.cargo-machete] ignored` 里，不是关掉规则）。
+# 横切能力的 OpenAPI 快照 = `crates/web/tests/openapi_snapshot.rs`，接口变了必须重生成
+# `docs/openapi.json` 并让 diff 进 PR（`CICADA_OPENAPI_BLESS=1 cargo test -p cicada-web --test openapi_snapshot`）。
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  # 测试与 `cargo run` 的连接串：与本地 docker-compose 的初始化脚本保持一致。
+  DATABASE_URL: postgres://cicada:2025%40hanmole@localhost:5432/cicada
+  REDIS_URL: redis://localhost:6379/0
+
+jobs:
+  rust:
+    name: rust（fmt / clippy / test）
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      # PostgreSQL 故意不用 service 容器：service 的 `options` 是 docker create 的参数，
+      # 传不进服务器命令行；而测试分层 / 审计设计的测试台要求 `max_locks_per_transaction=256`
+      # ——默认 64 在「一个用例一个 schema、跑前 DROP SCHEMA … CASCADE」（分区表把单 schema
+      # 的对象数推到 ~750、并行 10 个用例）时会撞 `53200 out of shared memory`。
+      # 本地实测：`docker run … postgres:17 -c max_locks_per_transaction=256`
+      # 起来后 `show max_locks_per_transaction` 就是 256。模板与镜像两个 job 只建一次库、
+      # 没有并行 CASCADE，仍用 service。
+      - name: 起 PostgreSQL（带测试分层要求的 max_locks_per_transaction）
+        run: |
+          docker run -d --name ci-postgres \
+            -p 5432:5432 \
+            -e POSTGRES_USER=cicada \
+            -e 'POSTGRES_PASSWORD=2026@cicada' \
+            -e POSTGRES_DB=cicada \
+            -e TZ=Asia/Shanghai \
+            postgres:17 -c max_locks_per_transaction=256
+          for i in $(seq 1 30); do
+            docker exec ci-postgres pg_isready -U cicada -d cicada >/dev/null && break
+            sleep 2
+          done
+          docker exec ci-postgres psql -U cicada -d cicada -At \
+            -c 'show max_locks_per_transaction' | grep -qx 256
+      # 工具链版本从 rust-toolchain.toml 读，保证 CI 与本地一致。
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: fmt
+        run: cargo fmt --all -- --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      # 「CI 用 cargo doc 检查链接」：坏掉的 intra-doc 链接在 -D warnings 下变红叉，
+      # 公开 API 缺文档注释同理（missing_docs）。
+      - name: cargo doc（公开 API 文档与链接）
+        run: cargo doc --no-deps --workspace
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - name: 单元测试（无外部依赖分支）
+        run: cargo test --workspace
+      - name: 集成测试（真实 PG / Redis）
+        run: cargo test --workspace -- --ignored
+      - name: 迁移往返（空库 up → down）
+        run: cargo test -p cicada-migrations --test roundtrip -- --ignored --nocapture
+      # 依赖规则「依赖规则（CI 强制）」：层与层之间能不能连边，脚本读 Cargo.toml，秒级。
+      - name: 依赖分层检查（依赖规则）
+        run: python3 deploy/check_layering.py
+      # 依赖规则规则 5 与的 `cargo deny/audit`：许可证白名单、RustSec 公告、重复版本。
+      - name: cargo deny（许可证 / 已知漏洞 / 重复版本）
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - run: cargo deny check
+      - name: cargo machete（未使用依赖，依赖规则规则 5）
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-machete
+      - run: cargo machete
+      # 横切能力：接口契约变更要显式确认。快照比对本身也是单元测试的一部分，这里单列一步
+      # 是为了失败时 CI 面板上直接看得出「是接口变了」而不是「测试挂了」。
+      - name: OpenAPI 快照（横切能力）
+        run: cargo test -p cicada-web --test openapi_snapshot
+
+  template:
+    name: 模板工程（cicada new → cargo check → migrate）
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: cicada
+          POSTGRES_PASSWORD: "2026@cicada"
+          POSTGRES_DB: cicada
+          TZ: Asia/Shanghai
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cicada -d cicada"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: Swatinem/rust-cache@v2
+      - name: 渲染使用者工程（业务代码落在 business/，框架走依赖）
+        run: cargo run -q -p cicada-cli -- new "$RUNNER_TEMP/my-app" --name my_app --cicada "path=$PWD"
+      - name: 编译使用者工程（含生成器产出的业务模块）
+        run: cargo check --all-targets
+        working-directory: ${{ runner.temp }}/my-app
+      # 空库跑一遍框架迁移 + 业务迁移 + 种子 + 初始管理员：模板能否真正落地由这条守住。
+      - name: 迁移可跑
+        run: cargo run -q --bin migrate -- up --seed --admin
+        working-directory: ${{ runner.temp }}/my-app
+        env:
+          DATABASE_URL: postgres://cicada:2025%40hanmole@localhost:5432/cicada
+
+  frontend:
+    name: 前端（web/）
+    runs-on: ubuntu-latest
+    # 前端工程已在 web/ 落地（Vue 3 + TS + Vite + Element Plus）；始终运行，
+    # 避免前端门禁被条件静默跳过。job 级 `if` 不能使用 `hashFiles`（它需要工作区）。
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          # 与本地/锁文件一致（pnpm-lock.yaml 为 lockfileVersion 9.0，由 pnpm 10 生成）。
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
+      - run: pnpm run lint
+        working-directory: web
+      - run: pnpm run typecheck
+        working-directory: web
+      - run: pnpm run build
+        working-directory: web
+
+  image:
+    name: 镜像构建与冒烟（镜像构建 → 冒烟）
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: "ci-root-pw"
+          POSTGRES_DB: cicada
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cicada"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: 构建镜像
+        run: docker build -t cicada-server:ci .
+      # `--network host`：容器要能连到 runner 上的 service 容器（桥接网络里解析不到 localhost）。
+      # `--entrypoint cicada-cli`：镜像的 ENTRYPOINT 是 `cicada-server`，直接把
+      # `cicada-cli migrate up` 当参数传过去会变成 `cicada-server cicada-cli …`——
+      # server 不解析参数，于是这一步不迁移而是起一个占用 8080 的服务。
+      - name: 迁移 + 种子（镜像里自带 cicada-cli，部署「先迁移后发版」）
+        run: |
+          for step in "migrate up" "seed" "init-admin"; do
+            docker run --rm --network host \
+              -e DATABASE_URL='postgres://postgres:ci-root-pw@127.0.0.1:5432/cicada' \
+              -e REDIS_URL='redis://127.0.0.1:6379/0' \
+              --entrypoint cicada-cli cicada-server:ci $step
+          done
+      - name: 起服务并冒烟
+        run: |
+          docker run -d --network host --name cicada-smoke \
+            -e DATABASE_URL='postgres://postgres:ci-root-pw@127.0.0.1:5432/cicada' \
+            -e REDIS_URL='redis://127.0.0.1:6379/0' \
+            cicada-server:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/readyz >/dev/null && break
+            sleep 2
+          done
+          docker logs cicada-smoke | tail -20
+          curl -fsS http://127.0.0.1:8080/readyz
+          curl -fsS http://127.0.0.1:8080/metrics | grep -q '^cicada_up'
+          curl -fsS http://127.0.0.1:8080/api-docs/openapi.json >/dev/null
+          # 登录 → 带令牌取受保护资源：这条打通才算「镜像里的产物真的能用」。
+          TOKEN=$(curl -fsS -X POST http://127.0.0.1:8080/auth/login \
+            -H 'content-type: application/json' \
+            -d '{"username":"admin","password":"Cicada@2026"}' | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
+          test -n "$TOKEN"
+          curl -fsS http://127.0.0.1:8080/api/v1/system/users?page=1\&page_size=5 \
+            -H "authorization: Bearer $TOKEN" | grep -q '"items"'
+          # 可观测性的两类指标都要在真实抓取里出现：常驻计数器 + 事件点计数器。
+          # 名字没有 cicada_ 前缀（只有 `cicada_up` 有），按 Prometheus 惯例让抓取端加 job 标签。
+          curl -fsS http://127.0.0.1:8080/metrics | grep -q '^http_requests_total{'
+          # 接口面从镜像里取，证明「文档 + 路由」这一整套随产物交付，而不是只在测试进程里成立。
+          curl -fsS http://127.0.0.1:8080/api-docs/openapi.json \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); n=len(d["paths"]); print(n, "paths"); sys.exit(n >= 100)'
+      - name: 容器健康检查应为 healthy
+        run: |
+          for i in $(seq 1 20); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' cicada-smoke)" = healthy ] && exit 0
+            sleep 3
+          done
+          echo "健康检查未转为 healthy"; docker inspect -f '{{json .State.Health}}' cicada-smoke; exit 1

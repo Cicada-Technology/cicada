@@ -1,0 +1,50 @@
+[package]
+name = "cicada-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+rust-i18n = { workspace = true }
+cicada-kernel = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+axum = { workspace = true }
+tower-http = { workspace = true }
+http-body-util = { workspace = true }
+futures-util = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+cicada-infra = { workspace = true }
+metrics = { workspace = true }
+cicada-ports = { workspace = true }
+cicada-auth = { workspace = true }
+cicada-rbac = { workspace = true }
+cicada-audit = { workspace = true }
+cicada-storage = { workspace = true }
+cicada-codegen = { workspace = true }
+cicada-system = { workspace = true }
+cicada-notify = { workspace = true }
+cicada-monitor = { workspace = true }
+cicada-jobs = { workspace = true }
+cicada-macros = { workspace = true }
+uuid = { workspace = true }
+sea-orm = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+rust_xlsxwriter = { workspace = true }
+calamine = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tower = { version = "0.5.3", features = ["util"] }
+sea-orm = { workspace = true }
+sea-orm-migration = { workspace = true }
+chrono = { workspace = true }
+cicada-migrations = { workspace = true }
+cicada-audit = { workspace = true }
+cicada-worker = { workspace = true }
+cicada-notify = { workspace = true }

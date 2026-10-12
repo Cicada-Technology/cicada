@@ -1,0 +1,40 @@
+//! `{{ table_name }}` 建表迁移（由 cicada 代码生成器产出）。
+//!
+//! 该表是从既有库结构发现的，迁移用于在**其他库**重建同名表；本库执行时
+//! `if_not_exists` 会让它成为空操作。
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[derive(DeriveIden)]
+#[allow(clippy::enum_variant_names)]
+enum {{ class_name }} {
+    #[sea_orm(iden = "{{ table_name }}")]
+    Table,
+{% for c in columns %}{% if c.name != c.field %}    #[sea_orm(iden = "{{ c.name }}")]
+{% endif %}    {{ c.pascal }},
+{% endfor %}}
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table({{ class_name }}::Table)
+                    .if_not_exists()
+{% for c in columns %}                    .col(ColumnDef::new({{ class_name }}::{{ c.pascal }}){{ c.column_def }})
+{% endfor %}                    .to_owned(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table({{ class_name }}::Table).to_owned())
+            .await?;
+        Ok(())
+    }
+}

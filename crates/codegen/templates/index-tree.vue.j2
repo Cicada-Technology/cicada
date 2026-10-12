@@ -1,0 +1,149 @@
+<!-- {{ function_name }} 树形列表页（由 cicada 代码生成器产出）。 -->
+<template>
+  <div class="app-container">
+    <el-form :model="query" inline>
+{% for c in query_columns %}      <el-form-item label="{{ c.comment }}">
+{% if c.dict_type %}        <el-select v-model="query.{{ c.field }}" clearable placeholder="全部" style="width: 160px">
+          <!-- dict: {{ c.dict_type }}，按需渲染字典项 -->
+        </el-select>
+{% elif c.temporal == 'datetime' or c.temporal == 'date' %}        <el-date-picker v-model="query.{{ c.field }}" type="{{ 'date' if c.temporal == 'date' else 'datetime' }}" value-format="{{ 'YYYY-MM-DD' if c.temporal == 'date' else 'YYYY-MM-DDTHH:mm:ssZ' }}" />
+{% else %}        <el-input v-model="query.{{ c.field }}" clearable placeholder="{{ c.comment }}" style="width: 180px" />
+{% endif %}      </el-form-item>
+{% endfor %}      <el-form-item>
+        <el-button type="primary" @click="load">查询</el-button>
+        <el-button v-perm="'{{ perms[1] }}'" type="success" @click="openCreate(null)">新增</el-button>
+        <el-button @click="toggleExpandAll">展开/折叠</el-button>
+      </el-form-item>
+    </el-form>
+
+    <el-table
+      v-if="refreshTable"
+      :data="rows"
+      v-loading="loading"
+      row-key="{{ tree_pk_field }}"
+      :default-expand-all="expandAll"
+      :tree-props="{ children: 'children' }"
+      border
+    >
+{% for c in list_columns %}{% if c.is_tree_name %}      <el-table-column prop="{{ c.field }}" label="{{ c.comment }}" show-overflow-tooltip />
+{% endif %}{% endfor %}{% for c in list_columns %}{% if c.is_tree_parent or c.is_tree_name %}{% else %}      <el-table-column prop="{{ c.field }}" label="{{ c.comment }}" show-overflow-tooltip />
+{% endif %}{% endfor %}      <el-table-column label="操作" width="220" fixed="right">
+        <template #default="{ row }">
+          <el-button v-perm="'{{ perms[1] }}'" link type="primary" @click="openCreate(row)">新增子项</el-button>
+          <el-button v-perm="'{{ perms[2] }}'" link type="primary" @click="openEdit(row)">修改</el-button>
+          <el-button v-perm="'{{ perms[3] }}'" link type="danger" @click="remove(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px">
+      <el-form :model="form" label-width="120px">
+        <el-form-item label="上级节点">
+          <el-tree-select
+            v-model="form.{{ tree_parent_field }}"
+            :data="treeOptions"
+            :props="{ label: '{{ tree_name_field }}', value: '{{ tree_pk_field }}', children: 'children' }"
+            check-strictly
+            :render-after-expand="false"
+            default-expand-all
+            style="width: 100%"
+          />
+        </el-form-item>
+{% for c in upsert_columns %}{% if c.is_tree_parent %}{% else %}        <el-form-item label="{{ c.comment }}"{% if c.is_required %} required{% endif %}>
+{% if c.dict_type %}          <el-select v-model="form.{{ c.field }}" style="width: 100%"><!-- dict: {{ c.dict_type }} --></el-select>
+{% elif c.html_type == 'textarea' or c.html_type == 'editor' %}          <el-input v-model="form.{{ c.field }}" type="textarea" :rows="3" />
+{% elif c.html_type == 'switch' %}          <el-switch v-model="form.{{ c.field }}" />
+{% elif c.temporal == 'datetime' %}          <el-date-picker v-model="form.{{ c.field }}" type="datetime" value-format="YYYY-MM-DDTHH:mm:ssZ" />
+{% elif c.temporal == 'date' %}          <el-date-picker v-model="form.{{ c.field }}" type="date" value-format="YYYY-MM-DD" />
+{% elif c.temporal == 'time' %}          <el-time-picker v-model="form.{{ c.field }}" value-format="HH:mm:ss" />
+{% else %}          <el-input v-model="form.{{ c.field }}" />
+{% endif %}        </el-form-item>
+{% endif %}{% endfor %}      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submit">确定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { nextTick, onMounted, reactive, ref } from 'vue';
+import {
+  tree{{ class_name }},
+  add{{ class_name }},
+  update{{ class_name }},
+  del{{ class_name }},
+  type {{ class_name }}Vo,
+  type {{ class_name }}Query,
+} from '@/api/{{ module_name }}/{{ business_name }}';
+
+/** 根节点的父键值（`{{ tree_parent_field }}` 为 0/空时即顶层）。 */
+const ROOT_PARENT = {% if pk_is_string %}''{% else %}0{% endif %};
+
+const loading = ref(false);
+const rows = ref<{{ class_name }}Vo[]>([]);
+const treeOptions = ref<any[]>([]);
+const refreshTable = ref(true);
+const expandAll = ref(true);
+const query = reactive<{{ class_name }}Query>({});
+const dialogVisible = ref(false);
+const dialogTitle = ref('');
+const form = ref<Partial<{{ class_name }}Vo>>({});
+let editingId: {{ pk_ts_type }} | null = null;
+
+async function load() {
+  loading.value = true;
+  try {
+    const data = await tree{{ class_name }}(query);
+    rows.value = data;
+    // 表单里的上级选择器：挂一个虚拟根节点，让「新增顶级」有落点。
+    treeOptions.value = [
+      { {{ tree_pk_field }}: ROOT_PARENT, {{ tree_name_field }}: '顶级节点', children: data },
+    ];
+  } finally {
+    loading.value = false;
+  }
+}
+
+function openCreate(row: {{ class_name }}Vo | null) {
+  editingId = null;
+  dialogTitle.value = '新增{{ function_name }}';
+  form.value = {
+    {{ tree_parent_field }}: row ? row.{{ tree_pk_field }} : ROOT_PARENT,
+  };
+  dialogVisible.value = true;
+}
+
+function openEdit(row: {{ class_name }}Vo) {
+  editingId = row.{{ pk.field }};
+  dialogTitle.value = '修改{{ function_name }}';
+  form.value = { ...row };
+  dialogVisible.value = true;
+}
+
+function toggleExpandAll() {
+  refreshTable.value = false;
+  expandAll.value = !expandAll.value;
+  nextTick(() => {
+    refreshTable.value = true;
+  });
+}
+
+async function submit() {
+  if (editingId === null) {
+    await add{{ class_name }}(form.value);
+  } else {
+    await update{{ class_name }}(editingId, form.value);
+  }
+  dialogVisible.value = false;
+  load();
+}
+
+async function remove(row: {{ class_name }}Vo) {
+  await del{{ class_name }}(row.{{ pk.field }});
+  load();
+}
+
+onMounted(load);
+</script>

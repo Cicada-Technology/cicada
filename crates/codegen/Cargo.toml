@@ -1,0 +1,25 @@
+[package]
+name = "cicada-codegen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cicada-kernel = { workspace = true }   # `#[derive(DataScoped)]` 展开后引用 `cicada_kernel::`
+cicada-infra = { workspace = true }
+cicada-macros = { workspace = true }
+sea-orm = { workspace = true }
+serde = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+minijinja = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+# `#[derive(DataScoped)]`（以及实体上的 SeaORM derive）会展开出 `cicada_kernel::` 路径，
+# 源码里没有显式 `use`，machete 因此看不到这条真实依赖。
+[package.metadata.cargo-machete]
+ignored = ["cicada-kernel"]

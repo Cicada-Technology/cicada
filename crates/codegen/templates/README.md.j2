@@ -1,0 +1,50 @@
+# {{ function_name }}（代码生成产物）
+
+- 表：`{{ table_name }}`（{{ table_comment }}）
+- 模块：`{{ module_name }}` / 业务名：`{{ business_name }}` / 类型：`{{ class_name }}`
+- 权限点前缀：`{{ perm_prefix }}`（{% for p in perms %}`{{ p }}`{% if not loop.last %}、{% endif %}{% endfor %}）
+- 模板分类：`{{ category }}`　作者：{{ function_author }}
+
+## 目录
+
+```
+src/{{ module_name }}/{{ business_name }}/   entity.rs / dto.rs / handler.rs / module.rs
+migrations/m{{ date }}_{{ seq }}_{{ business_name }}.rs
+web/src/api/{{ module_name }}/{{ business_name }}.ts
+web/src/views/{{ module_name }}/{{ business_name }}/index.vue
+sql/{{ business_name }}_menu.sql
+```
+
+## 接入步骤
+
+`cicada new` 生成的使用者工程里，下面四步对应的是固定位置。
+
+1. 把 `src/{{ module_name }}/` 放到工程的 `business/` 下（`business/{{ business_name }}/`），
+   并在 `business/mod.rs` 里加一行 `pub mod {{ business_name }};`。
+2. 依赖已在工程里备好：`cicada`（门面）+ 生成器产物直接引用的 `cicada-kernel` /
+   `cicada-macros` / `cicada-audit` / `cicada-web`，以及 `sea-orm`、`axum`、`serde`、
+   `chrono`、`utoipa`、`rust_decimal`（有 numeric 列时）。`utoipa` 需开启
+   `chrono` / `decimal` / `uuid` 特性。
+3. 在组合根注册模块（`src/main.rs`）：
+
+   ```rust
+   AppBuilder::new(config)
+       .with_module(Box::new(business::{{ business_name }}::{{ struct_name }}))
+   ```
+
+   权限点、数据属主与路由会在启动期双向对账；三者任一不齐都起不来。
+4. 把 `migration/*.rs` 放进 `migrations/` 并在 `migrations/mod.rs` 的
+   `migrations()` 末尾追加一行（表已存在时 `if_not_exists` 是空操作）。
+5. 执行 `sql/{{ business_name }}_menu.sql`（先把 `:parent_id` 换成上级目录 id）。
+6. 前端：把 `web/src/views/...`、`web/src/api/...` 拷进前端工程。
+
+## 约定
+
+- 生成器要求表有单列主键、`tenant_id`、`deleted_at`：数据范围与软删由
+  `ScopedQuery` 在查询层叠加，handler 里不写租户条件。
+- 时间类列在 DTO 里是字符串（RFC3339 / `YYYY-MM-DD` / `HH:MM:SS`），
+  由 handler 的 `parse_*` 辅助解析。
+{% if is_tree %}- 树表：`parent_id` 是非空父键（根节点取 `0`），节点名取首个字符串业务列（优先 `*_name`）。
+  列表接口 `{{ route_base }}/tree` 返回组装好的森林（不分页）；父键不进查询项，
+  前端用 `el-tree-select` 选上级。
+{% endif %}- 改字段请改库表后重新导入生成，不要手改 DTO 与 entity 的字段集合。

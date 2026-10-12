@@ -1,0 +1,473 @@
+use sea_orm_migration::prelude::*;
+
+/// P2 表：租户套餐与限额、通知中心（渠道/模板/记录）、开放接口凭证。
+///
+/// - `sys_tenant_package`：套餐与限额（用户数 / 存储 / QPS）；`sys_tenant.package_id`
+///   关联在 `m20261008_000001_core_schema` 建 `sys_tenant` 时已给出（迁移不做「先建后改」）。
+/// - `sys_notify_channel` / `sys_notify_template` / `sys_notify_record`：通知中心三张表。
+/// - `sys_api_key`：开放接口凭证，只存 `secret_hash`，明文仅在创建时返回一次。
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[derive(DeriveIden)]
+enum SysTenantPackage {
+    Table,
+    Id,
+    Code,
+    Name,
+    UserLimit,
+    StorageLimitMb,
+    ApiQpsLimit,
+    Features,
+    Status,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+}
+
+#[derive(DeriveIden)]
+enum SysNotifyChannel {
+    Table,
+    Id,
+    TenantId,
+    Code,
+    Name,
+    Kind,
+    Config,
+    Enabled,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+}
+
+#[derive(DeriveIden)]
+enum SysNotifyTemplate {
+    Table,
+    Id,
+    TenantId,
+    Code,
+    Name,
+    ChannelKind,
+    Locale,
+    Title,
+    Body,
+    Enabled,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+}
+
+#[derive(DeriveIden)]
+enum SysNotifyRecord {
+    Table,
+    Id,
+    TenantId,
+    ChannelId,
+    TemplateCode,
+    Recipient,
+    Payload,
+    // 0 待发 / 1 已发 / 2 失败（`Pending` / `Done` / `Failed`）。
+    Status,
+    Error,
+    CreateBy,
+    CreateTime,
+    SentAt,
+}
+
+#[derive(DeriveIden)]
+enum SysApiKey {
+    Table,
+    Id,
+    TenantId,
+    Name,
+    KeyPrefix,
+    SecretHash,
+    Scopes,
+    Status,
+    ExpiresAt,
+    LastUsedAt,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+}
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // ---- 租户套餐与限额 ----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysTenantPackage::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysTenantPackage::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysTenantPackage::Code)
+                            .string_len(64)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysTenantPackage::Name)
+                            .string_len(128)
+                            .not_null(),
+                    )
+                    // -1 = 不限
+                    .col(
+                        ColumnDef::new(SysTenantPackage::UserLimit)
+                            .integer()
+                            .not_null()
+                            .default(-1),
+                    )
+                    .col(
+                        ColumnDef::new(SysTenantPackage::StorageLimitMb)
+                            .big_integer()
+                            .not_null()
+                            .default(-1),
+                    )
+                    .col(
+                        ColumnDef::new(SysTenantPackage::ApiQpsLimit)
+                            .integer()
+                            .not_null()
+                            .default(-1),
+                    )
+                    .col(
+                        ColumnDef::new(SysTenantPackage::Features)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::value("{}")),
+                    )
+                    .col(
+                        ColumnDef::new(SysTenantPackage::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysTenantPackage::Remark).text())
+                    .col(ColumnDef::new(SysTenantPackage::CreateBy).string_len(64))
+                    .col(
+                        ColumnDef::new(SysTenantPackage::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(ColumnDef::new(SysTenantPackage::UpdateBy).string_len(64))
+                    .col(ColumnDef::new(SysTenantPackage::UpdateTime).timestamp_with_time_zone())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uk_sys_tenant_package_code")
+                    .table(SysTenantPackage::Table)
+                    .col(SysTenantPackage::Code)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 通知渠道 ----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysNotifyChannel::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysNotifyChannel::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyChannel::TenantId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyChannel::Code)
+                            .string_len(64)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyChannel::Name)
+                            .string_len(128)
+                            .not_null(),
+                    )
+                    // `sms` / `email` / `webhook` / `im`
+                    .col(
+                        ColumnDef::new(SysNotifyChannel::Kind)
+                            .string_len(32)
+                            .not_null(),
+                    )
+                    // 驱动配置（webhook url / smtp host / sms 网关参数）。
+                    .col(
+                        ColumnDef::new(SysNotifyChannel::Config)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::value("{}")),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyChannel::Enabled)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(ColumnDef::new(SysNotifyChannel::Remark).text())
+                    .col(ColumnDef::new(SysNotifyChannel::CreateBy).string_len(64))
+                    .col(
+                        ColumnDef::new(SysNotifyChannel::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(ColumnDef::new(SysNotifyChannel::UpdateBy).string_len(64))
+                    .col(ColumnDef::new(SysNotifyChannel::UpdateTime).timestamp_with_time_zone())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uk_sys_notify_channel_code")
+                    .table(SysNotifyChannel::Table)
+                    .col(SysNotifyChannel::TenantId)
+                    .col(SysNotifyChannel::Code)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 通知模板（minijinja 渲染）----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysNotifyTemplate::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysNotifyTemplate::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyTemplate::TenantId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyTemplate::Code)
+                            .string_len(64)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyTemplate::Name)
+                            .string_len(128)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyTemplate::ChannelKind)
+                            .string_len(32)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyTemplate::Locale)
+                            .string_len(16)
+                            .not_null()
+                            .default("zh-CN"),
+                    )
+                    .col(ColumnDef::new(SysNotifyTemplate::Title).text().not_null())
+                    .col(ColumnDef::new(SysNotifyTemplate::Body).text().not_null())
+                    .col(
+                        ColumnDef::new(SysNotifyTemplate::Enabled)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(ColumnDef::new(SysNotifyTemplate::Remark).text())
+                    .col(ColumnDef::new(SysNotifyTemplate::CreateBy).string_len(64))
+                    .col(
+                        ColumnDef::new(SysNotifyTemplate::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(ColumnDef::new(SysNotifyTemplate::UpdateBy).string_len(64))
+                    .col(ColumnDef::new(SysNotifyTemplate::UpdateTime).timestamp_with_time_zone())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uk_sys_notify_template_code")
+                    .table(SysNotifyTemplate::Table)
+                    .col(SysNotifyTemplate::TenantId)
+                    .col(SysNotifyTemplate::Code)
+                    .col(SysNotifyTemplate::ChannelKind)
+                    .col(SysNotifyTemplate::Locale)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 通知记录 ----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysNotifyRecord::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysNotifyRecord::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyRecord::TenantId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyRecord::ChannelId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyRecord::TemplateCode)
+                            .string_len(64)
+                            .not_null(),
+                    )
+                    // 审计日志表写作 `to`，`to` 是 SQL 关键字，落库改名为 `recipient`。
+                    .col(ColumnDef::new(SysNotifyRecord::Recipient).text().not_null())
+                    .col(
+                        ColumnDef::new(SysNotifyRecord::Payload)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::value("{}")),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotifyRecord::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysNotifyRecord::Error).text())
+                    .col(ColumnDef::new(SysNotifyRecord::CreateBy).string_len(64))
+                    .col(
+                        ColumnDef::new(SysNotifyRecord::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(ColumnDef::new(SysNotifyRecord::SentAt).timestamp_with_time_zone())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_notify_record_tenant_time")
+                    .table(SysNotifyRecord::Table)
+                    .col(SysNotifyRecord::TenantId)
+                    .col(SysNotifyRecord::CreateTime)
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 开放接口凭证 ----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysApiKey::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysApiKey::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(SysApiKey::TenantId).big_integer().not_null())
+                    .col(ColumnDef::new(SysApiKey::Name).string_len(128).not_null())
+                    // 明文前缀（`ck_xxxxxxxx`），仅用于展示与检索，不足以还原密钥。
+                    .col(
+                        ColumnDef::new(SysApiKey::KeyPrefix)
+                            .string_len(32)
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysApiKey::SecretHash).text().not_null())
+                    .col(
+                        ColumnDef::new(SysApiKey::Scopes)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::value("[]")),
+                    )
+                    .col(
+                        ColumnDef::new(SysApiKey::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysApiKey::ExpiresAt).timestamp_with_time_zone())
+                    .col(ColumnDef::new(SysApiKey::LastUsedAt).timestamp_with_time_zone())
+                    .col(ColumnDef::new(SysApiKey::Remark).text())
+                    .col(ColumnDef::new(SysApiKey::CreateBy).string_len(64))
+                    .col(
+                        ColumnDef::new(SysApiKey::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(ColumnDef::new(SysApiKey::UpdateBy).string_len(64))
+                    .col(ColumnDef::new(SysApiKey::UpdateTime).timestamp_with_time_zone())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_api_key_prefix")
+                    .table(SysApiKey::Table)
+                    .col(SysApiKey::KeyPrefix)
+                    .to_owned(),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(SysApiKey::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysNotifyRecord::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysNotifyTemplate::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysNotifyChannel::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysTenantPackage::Table).to_owned())
+            .await
+    }
+}

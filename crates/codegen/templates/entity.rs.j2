@@ -1,0 +1,19 @@
+//! `{{ table_name }}`：{{ table_comment }}
+//!
+//! 由 cicada 代码生成器产出。归属形态：`{{ ownership }}`。
+
+use cicada_macros::DataScoped;
+use sea_orm::entity::prelude::*;
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, DeriveActiveModelBehavior, DataScoped)]
+#[sea_orm(table_name = "{{ table_name }}")]
+#[data_scope(tenant = Column::TenantId, deleted = Column::DeletedAt{% if dept_pascal %}, dept = Column::{{ dept_pascal }}{% endif %}{% if owner_pascal %}, owner = Column::{{ owner_pascal }}{% endif %}{% if not dept_pascal and not owner_pascal %}, no_ownership{% endif %})]
+pub struct Model {
+{% for c in columns %}    /// {{ c.comment }}
+{% if c.is_pk %}    #[sea_orm(primary_key)]
+{% endif %}{% if c.name != c.field %}    #[sea_orm(column_name = "{{ c.name }}")]
+{% endif %}    pub {{ c.field }}: {{ c.rust_type }},
+{% endfor %}}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {}

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+src/**/*.tsbuildinfo
+*.local
+.vite/
+.eslintcache
+stats.html

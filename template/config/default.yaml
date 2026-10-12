@@ -1,0 +1,152 @@
+# {{project-name}} 配置
+#
+# 分层取值：本文件为默认层；`Config::load()` 在本文件缺失时用 `DATABASE_URL` /
+# `REDIS_URL` 兜底。部署时按环境覆盖，不要把生产密钥写进这里。
+#
+# 开发环境用 cicada 仓库的 `docker compose up -d` 起 PostgreSQL + Redis，
+# 下面的连接串即对应它的初始化脚本。
+server:
+  port: 8080
+  body_limit_mb: 20
+  graceful_shutdown_secs: 30
+db:
+  url: "postgres://cicada:2025%40hanmole@localhost:5432/cicada"
+  max_connections: 20
+  min_connections: 0
+  acquire_timeout_secs: 8
+  schema: public
+redis:
+  url: "redis://localhost:6379/0"
+# RLS 兜底：默认关闭；表名必须命中 cicada_infra::rls::TENANT_TABLES 白名单。
+# 注意：开启某表的 RLS 后，读该表的路径必须经 Db::begin_scoped 注入 app.tenant_id，
+# 否则查询会被策略过滤为空（fail-closed）。
+rls:
+  tables: []
+tenant:
+  enabled: true
+  default_id: 1
+# 跨域（第 4 层）：默认关闭；前端独立域名部署时再开并列出源。
+# 注意 `allowed_origins: ["*"]` 不能与 `allow_credentials: true` 同时使用。
+cors:
+  enabled: false
+  allowed_origins: []
+  allow_credentials: false
+  max_age_secs: 3600
+# 限流（第 7 层）：单 IP 令牌桶 + 租户套餐 QPS（api_qps_limit，多租户设计）。
+# per_ip_qps: 0 表示不限；租户额度读库失败按不限放行（可用性优先）。
+rate_limit:
+  enabled: true
+  per_ip_qps: 200
+  per_ip_burst: 400
+  # 租户 api_qps_limit 的本地缓存 TTL（秒），避免每请求查库
+  tenant_cache_ttl_secs: 60
+auth:
+  # JWT：生产换成 EdDSA，两把钥匙都从环境注入：
+  #   jwt: { alg: EdDSA, kid: "2026-10", private_key: "${JWT_PRIVATE_KEY}",
+  #          public_key: "${JWT_PUBLIC_KEY}", keys: [{ kid: "2026-09", key: "${OLD_JWT_PUB}" }] }
+  # `keys` 是轮换期仍要验签的旧密钥；profile=prod 时示例值/短密钥会被拒绝启动。
+  jwt:
+    alg: HS256
+    kid: "1"
+    private_key: "dev-secret-change-me"
+    public_key: ""
+    keys: []
+  access_ttl_min: 15
+  refresh_ttl_days: 7
+  max_sessions: -1
+  # 授权缓存 TTL（秒），角色/菜单变更按版本号整体失效
+  authz_cache_ttl_secs: 300
+  # 开发用身份绑定验证码；生产留空并接入真实短信/邮件通道
+  identity_code: null
+  # 密码策略：连续失败锁定 + 最小长度
+  password:
+    max_retry: 5
+    lock_minutes: 10
+    min_length: 8
+  # 图形验证码：连续失败 required_after 次后登录强制校验。
+  captcha:
+    enabled: true
+    length: 4
+    ttl_secs: 120
+    required_after: 3
+  # 第三方登录：providers 为空即关闭，相关接口返回 404。
+  # kind: wechat（开放平台扫码，appid/secret + snsapi_login）| oidc（通用授权码流程）。
+  # 微信的 unionid（拿不到时用 openid）与 OIDC 的 sub 是身份标识；
+  # redirect_uri 必须是提供方控制台登记的那个完整地址。
+  oauth:
+    # state 有效期（秒，单次使用）/ 未绑定时下发的绑定票据有效期（秒）
+    state_ttl_secs: 300
+    ticket_ttl_secs: 600
+    providers: []
+    # - code: wechat
+    #   kind: wechat
+    #   client_id: "${WECHAT_APP_ID}"
+    #   client_secret: "${WECHAT_APP_SECRET}"
+    #   authorize_url: "https://open.weixin.qq.com/connect/qrconnect"
+    #   token_url: "https://api.weixin.qq.com/sns/oauth2/access_token"
+    #   userinfo_url: "https://api.weixin.qq.com/sns/userinfo"
+    #   redirect_uri: "https://api.example.com/auth/login/wechat/callback"
+    # - code: keycloak
+    #   kind: oidc
+    #   client_id: cicada
+    #   client_secret: "${OIDC_CLIENT_SECRET}"
+    #   authorize_url: "https://sso.example.com/realms/cicada/protocol/openid-connect/auth"
+    #   token_url: "https://sso.example.com/realms/cicada/protocol/openid-connect/token"
+    #   userinfo_url: "https://sso.example.com/realms/cicada/protocol/openid-connect/userinfo"
+    #   redirect_uri: "https://api.example.com/auth/login/keycloak/callback"
+    #   scopes: ["openid", "profile", "email"]
+# 日志保留期与归档：按整月判定，先归档到对象存储再删分区。
+audit:
+  retention_days: 180
+  # 分区往后预铺的月数（往前补一半）；维护任务每月跑一次即可。
+  horizon_months: 24
+  # false = 只报告到期分区，不归档也不删除
+  archive: true
+
+# 可观测：stdout 日志恒开；配了 otlp_endpoint 才导出链路（OTLP/HTTP）。
+telemetry:
+  # 例：http://127.0.0.1:43180（collector 端口，路径 /v1/traces 由程序补）
+  otlp_endpoint: null
+  service_name: cicada
+  sample_ratio: 1.0
+
+storage:
+  driver: local
+  root: ./data/upload
+  max_upload_mb: 20
+# 定时任务：调用目标是注册表 key，不是类名反射
+jobs:
+  enabled: true
+  # 触发方式：cron（进程内 cron 生产，默认）/ manual（只接受人工或外部触发）
+  trigger: cron
+  # 执行方式：inline（触发即执行，默认）/ apalis（投递到 Postgres 队列，由消费者执行）
+  execution: inline
+  # 队列命名空间（execution = apalis 时生效）
+  queue: cicada::jobs
+  # 缺省时进程启动生成；写入 sys_job_log 并作为选主 token
+  instance_id: null
+  leader_ttl_secs: 30
+  follower_retry_secs: 10
+  default_timeout_secs: 0
+
+# 审计发件箱 relay：audit 只写 outbox_event，relay 投给 system 的日志表
+outbox:
+  enabled: true
+  poll_interval_ms: 500
+  batch: 200
+  max_attempts: 5
+
+# 代码生成器：产物一律打包下载，不在线写源码树
+gen:
+  enabled: true
+  # 生成代码默认落到的模块名，可在导入后逐个改写
+  module_name: business
+  author: {{project-name}}
+  route_prefix: /api/v1
+  # 模板覆写目录（<模板名>.j2 优先于内置模板）
+  template_dir: null
+  # 表名准入前缀白名单（空表示不限制）；strip_prefixes 只影响命名
+  allowed_prefixes: []
+  strip_prefixes: []
+  deny_tables: []
+  max_import_tables: 20

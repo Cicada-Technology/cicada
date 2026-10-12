@@ -1,0 +1,29 @@
+# cargo-generate 模板。
+#
+#   cargo generate --path template my-app            # 有 cargo-generate 时
+#   cicada new my-app                                # 或直接用框架自带 CLI（内置渲染，无需安装）
+#
+# 生成的工程只碰 business/ / migrations/ / templates/ / config/，框架 crate 走依赖，
+# 永不 fork。
+[placeholders.cicada_dep]
+type = "string"
+prompt = "cicada 门面依赖来源（TOML 片段）：git = \"https://github.com/<org>/cicada\", tag = \"v0.1.0\""
+default = 'git = "https://github.com/cicada-rs/cicada", tag = "v0.1.0"'
+
+# 生成器产物直接引用的四个 crate：默认与门面同一来源。
+# `cicada new --cicada <来源>` 会一次性填好这五处；用 cargo-generate 时按需改默认值。
+[placeholders.cicada_kernel_dep]
+type = "string"
+default = 'git = "https://github.com/cicada-rs/cicada", tag = "v0.1.0"'
+
+[placeholders.cicada_macros_dep]
+type = "string"
+default = 'git = "https://github.com/cicada-rs/cicada", tag = "v0.1.0"'
+
+[placeholders.cicada_audit_dep]
+type = "string"
+default = 'git = "https://github.com/cicada-rs/cicada", tag = "v0.1.0"'
+
+[placeholders.cicada_web_dep]
+type = "string"
+default = 'git = "https://github.com/cicada-rs/cicada", tag = "v0.1.0"'

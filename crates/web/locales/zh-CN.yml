@@ -1,0 +1,49 @@
+# 服务端消息：与参考实现 `messages.properties` 同名的键优先复用（user.* / captcha），
+# cicada 独有语义放 auth.* / common.* / idempotency.*。zh-CN 是兜底语言（fallback）。
+user:
+  password:
+    not:
+      match: 账号或密码错误
+    retry:
+      limit:
+        exceed: 账号已锁定，请 %{seconds} 秒后重试
+  blocked: 账号已停用
+  jcaptcha:
+    error: 图形验证码错误或已过期
+auth:
+  unauthorized: 未认证
+  forbidden: 无权限
+  invalid_token: 令牌无效或过期
+  session_expired: 会话已失效
+  reauth_required: 登录环境已变化（设备或浏览器不同），请重新登录
+  refresh_replay: 刷新令牌已被使用，会话链已撤销
+  verification_failed: 验证码错误或已过期
+  api_key_invalid: 凭证无效
+  api_key_disabled: 凭证已停用：%{name}
+  api_key_expired: 凭证已过期：%{name}
+  api_key_unavailable: 凭证校验不可用
+  session_store_unavailable: 会话存储不可用：%{detail}
+  totp:
+    required: 需要二次验证码
+    invalid: 二次验证码错误
+    not_enabled: 未启用二次验证
+    already_enabled: 二次验证已启用
+  identity:
+    not_found: 身份不存在
+    last: 必须保留至少一个可登录身份
+    duplicate: 该身份已被绑定
+    unsupported: 该身份类型不支持自助绑定
+    invalid: 身份标识非法
+  oauth:
+    provider_not_found: 未知的登录提供方：%{provider}
+    state_invalid: 授权 state 无效或已过期
+    upstream: 第三方登录上游失败：%{detail}
+common:
+  rate_limited: 请求过于频繁，请稍后重试
+  payload_too_large: 请求体超过上限 %{limit_mb}MB
+  internal_error: 服务内部错误，请稍后重试或联系管理员
+  not_found: 请求的资源不存在
+  invalid_payload: 请求体或参数格式不正确
+  unsupported_media_type: 请求内容类型不受支持，请使用 application/json
+idempotency:
+  in_progress: 相同 Idempotency-Key 的请求正在处理中

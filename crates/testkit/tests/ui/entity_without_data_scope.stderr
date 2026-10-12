@@ -1,0 +1,16 @@
+error[E0599]: the method `scoped` exists for struct `cicada_kernel::Query<Entity>`, but its trait bounds were not satisfied
+  --> tests/ui/entity_without_data_scope.rs:29:59
+   |
+ 7 | #[derive(Clone, Debug, PartialEq, DeriveEntityModel, DeriveActiveModelBehavior)]
+   |                                   ----------------- doesn't satisfy `Entity: DataScoped`
+...
+29 |     let _ = cicada_kernel::scope::Query::<Entity>::open().scoped(&scope);
+   |                                                           ^^^^^^
+   |
+   = note: the following trait bounds were not satisfied:
+           `Entity: DataScoped`
+note: the trait `DataScoped` must be implemented
+  --> $WORKSPACE/crates/kernel/src/scope/entity.rs
+   |
+   | pub trait DataScoped: EntityTrait {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

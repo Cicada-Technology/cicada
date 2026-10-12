@@ -1,0 +1,156 @@
+/*!
+ * 动效：默认临界阻尼、仅动量手势轻微过冲、reduced-motion 下退化为瞬切。
+ *
+ * 时长与曲线全部来自令牌，因此这里不出现毫秒数——想调快全局只改 tokens.css。
+ * 同时把 Element Plus 自带的进场关键帧（`translateY(-20px)`，Material 观感）换成
+ * 我们自己的「轻微上升 + 极小幅缩放」。
+ */
+
+/* ---------------------------------------------------------------- 关键帧 */
+/* 浮层遮罩只做透明度，不做位移：背景移动会让人误以为页面本身在动。 */
+@keyframes ci-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ci-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* 弹层本体：8px 上升 + 0.98 缩放。位移小、缩放小，才不会「弹出来」。 */
+@keyframes ci-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ci-dialog-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.99);
+  }
+}
+
+/* ------------------------------------------------- 弹层：接管 Element 的进场 */
+.dialog-fade-enter-active {
+  animation-name: ci-overlay-in;
+  animation-timing-function: var(--ci-ease-out);
+}
+
+.dialog-fade-enter-active .el-overlay-dialog {
+  animation-name: ci-dialog-in;
+  animation-duration: var(--ci-duration-base);
+  animation-timing-function: var(--ci-ease-damped);
+}
+
+.dialog-fade-leave-active {
+  animation-name: ci-overlay-out;
+  animation-timing-function: var(--ci-ease-in);
+}
+
+.dialog-fade-leave-active .el-overlay-dialog {
+  animation-name: ci-dialog-out;
+  animation-duration: var(--ci-duration-fast);
+  animation-timing-function: var(--ci-ease-in);
+}
+
+/* 抽屉是拖拽投掷的近亲，用动量曲线留一点点过冲；其余场景一律不用。 */
+.el-drawer {
+  transition:
+    transform var(--ci-duration-slow) var(--ci-ease-momentum),
+    background-color var(--ci-duration-fast) var(--ci-ease-out);
+}
+
+.el-drawer-fade-enter-active,
+.el-drawer-fade-leave-active {
+  transition:
+    background-color var(--ci-duration-base) var(--ci-ease-damped),
+    backdrop-filter var(--ci-duration-base) var(--ci-ease-damped);
+}
+
+/* ------------------------------------------------------------ 路由视图过渡 */
+/* 只做「淡入 + 2px 上移」，不做左右滑：后台页面之间没有方向关系。 */
+.ci-view-enter-active {
+  transition:
+    opacity var(--ci-duration-base) var(--ci-ease-damped),
+    transform var(--ci-duration-base) var(--ci-ease-damped);
+}
+
+.ci-view-leave-active {
+  transition: opacity var(--ci-duration-instant) var(--ci-ease-in);
+}
+
+.ci-view-enter-from {
+  opacity: 0;
+  transform: translate3d(0, 2px, 0);
+}
+
+.ci-view-leave-to {
+  opacity: 0;
+}
+
+/* ------------------------------------------------------------ 通用过渡类 */
+.ci-fade-enter-active,
+.ci-fade-leave-active {
+  transition: opacity var(--ci-duration-base) var(--ci-ease-damped);
+}
+
+.ci-fade-enter-from,
+.ci-fade-leave-to {
+  opacity: 0;
+}
+
+.ci-collapse-enter-active,
+.ci-collapse-leave-active {
+  transition:
+    opacity var(--ci-duration-base) var(--ci-ease-damped),
+    transform var(--ci-duration-base) var(--ci-ease-damped);
+}
+
+.ci-collapse-enter-from,
+.ci-collapse-leave-to {
+  opacity: 0;
+  transform: translate3d(0, -4px, 0);
+}
+
+/* 统一的「按下」反馈类，供自定义可点区域使用。 */
+.ci-interactive {
+  transition: var(--ci-transition-control);
+}
+
+.ci-interactive:active {
+  transform: scale(var(--ci-press-scale));
+}
+
+/* ----------------------------------------------- 减少动态效果：只留透明度 */
+/* 令牌已把时长压到 1ms；这里额外去掉位移，避免「瞬移一下」的错觉。 */
+@media (prefers-reduced-motion: reduce) {
+  .ci-view-enter-from,
+  .ci-collapse-enter-from,
+  .dialog-fade-enter-active .el-overlay-dialog {
+    transform: none;
+  }
+
+  .ci-interactive:active,
+  .el-button:active {
+    transform: none;
+  }
+}

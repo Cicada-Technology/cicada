@@ -1,0 +1,40 @@
+// {{ function_name }} API（由 cicada 代码生成器产出）。
+import { request } from '@/utils/request';
+
+export interface {{ class_name }}Vo {
+{% for c in list_columns %}  /** {{ c.comment }} */
+  {{ c.field }}: {{ 'string' if c.is_string or c.temporal else 'number' }};
+{% endfor %}{% if is_tree %}  /** 子节点（树接口填充） */
+  children?: {{ class_name }}Vo[];
+{% endif %}}
+
+export interface {{ class_name }}Query {
+{% for c in query_columns %}  {{ c.field }}?: {{ 'string' if c.is_string else 'number' }};
+{% endfor %}  page?: number;
+  page_size?: number;
+}
+
+export function list{{ class_name }}(params: {{ class_name }}Query) {
+  return request.get('/{{ module_name }}/{{ business_name }}', { params });
+}
+
+{% if is_tree %}/** 树形列表（受数据范围约束、不分页，返回森林）。 */
+export function tree{{ class_name }}(params?: {{ class_name }}Query) {
+  return request.get<{{ class_name }}Vo[]>('/{{ module_name }}/{{ business_name }}/tree', { params });
+}
+
+{% endif %}export function get{{ class_name }}(id: {{ pk_ts_type }}) {
+  return request.get(`/{{ module_name }}/{{ business_name }}/${id}`);
+}
+
+export function add{{ class_name }}(data: Partial<{{ class_name }}Vo>) {
+  return request.post('/{{ module_name }}/{{ business_name }}', data);
+}
+
+export function update{{ class_name }}(id: {{ pk_ts_type }}, data: Partial<{{ class_name }}Vo>) {
+  return request.put(`/{{ module_name }}/{{ business_name }}/${id}`, data);
+}
+
+export function del{{ class_name }}(id: {{ pk_ts_type }}) {
+  return request.delete(`/{{ module_name }}/{{ business_name }}/${id}`);
+}

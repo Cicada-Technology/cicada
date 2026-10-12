@@ -1,0 +1,16 @@
+[package]
+name = "cicada-jobs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cicada-kernel = { workspace = true }
+cicada-infra = { workspace = true }
+sea-orm = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+croner = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

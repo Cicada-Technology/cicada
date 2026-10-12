@@ -1,0 +1,48 @@
+# English messages. Key set must stay in sync with zh-CN.yml (fallback locale).
+user:
+  password:
+    not:
+      match: Invalid username or password
+    retry:
+      limit:
+        exceed: Account locked due to failed sign-ins, retry in %{seconds} seconds
+  blocked: Account is disabled
+  jcaptcha:
+    error: Incorrect or expired captcha
+auth:
+  unauthorized: Unauthenticated
+  forbidden: Access denied
+  invalid_token: Invalid or expired token
+  session_expired: Session has expired
+  reauth_required: Sign-in context changed (different device or browser); please sign in again
+  refresh_replay: Refresh token already used; the session chain was revoked
+  verification_failed: Incorrect or expired verification code
+  api_key_invalid: Invalid credential
+  api_key_disabled: "Credential is disabled: %{name}"
+  api_key_expired: "Credential has expired: %{name}"
+  api_key_unavailable: Credential verification is unavailable
+  session_store_unavailable: "Session store is unavailable: %{detail}"
+  totp:
+    required: Second-factor code required
+    invalid: Invalid second-factor code
+    not_enabled: Second-factor verification is not enabled
+    already_enabled: Second-factor verification is already enabled
+  identity:
+    not_found: Identity not found
+    last: At least one sign-in identity must remain
+    duplicate: This identity is already bound
+    unsupported: This identity type cannot be self-bound
+    invalid: Invalid identity identifier
+  oauth:
+    provider_not_found: "Unknown login provider: %{provider}"
+    state_invalid: Invalid or expired OAuth state
+    upstream: "Third-party sign-in upstream failure: %{detail}"
+common:
+  rate_limited: Too many requests, please try again later
+  payload_too_large: Request body exceeds the %{limit_mb}MB limit
+  internal_error: Internal server error, please retry later
+  not_found: The requested resource does not exist
+  invalid_payload: Request body or parameters are malformed
+  unsupported_media_type: Unsupported request content type, use application/json
+idempotency:
+  in_progress: A request with the same Idempotency-Key is already in progress

@@ -1,0 +1,11 @@
+/target
+**/*.rs.bk
+*.iml
+.idea/
+.vscode/
+.env
+config/local.yaml
+config/default.yaml
+
+# 离线构建资产（各自准备，不入库）
+vendor/*.zip

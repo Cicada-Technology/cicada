@@ -1,0 +1,528 @@
+/*!
+ * Element Plus 重皮肤（Element Plus 只作底层组件，不沿用其默认 Material 观感）。
+ *
+ * 手法只有两种：先把 Element 的变量接到我们的令牌上，再对少数高频组件做局部修正。
+ * 不复制 Element 的组件样式，也不写组件选择器层面的复制粘贴——升级 Element 时只会掉皮，不会崩。
+ *
+ * 依赖 `color-mix()`（Baseline 2023）派生浅色档位；不支持时这些变量失效，
+ * 浏览器列表见 README——本项目按 2026 年的基线不降级。
+ */
+
+:root {
+  /* ---------------------------------------------------------- 字体与尺寸 */
+  --el-font-family: var(--ci-font-sans);
+  --el-font-size-extra-small: var(--ci-text-xs);
+  --el-font-size-small: var(--ci-text-sm);
+  --el-font-size-base: var(--ci-text-base);
+  --el-font-size-medium: var(--ci-text-md);
+  --el-font-size-large: var(--ci-text-lg);
+  --el-font-weight-primary: var(--ci-weight-medium);
+
+  --el-component-size-small: 28px;
+  --el-component-size: 32px;
+  --el-component-size-large: 40px;
+
+  /* ------------------------------------------------------------ 语义色 */
+  --el-color-primary: var(--ci-color-accent);
+  --el-color-primary-dark-2: var(--ci-color-accent-pressed);
+  --el-color-primary-light-3: color-mix(
+    in srgb,
+    var(--ci-color-accent) 70%,
+    var(--ci-color-surface)
+  );
+  --el-color-primary-light-5: color-mix(
+    in srgb,
+    var(--ci-color-accent) 50%,
+    var(--ci-color-surface)
+  );
+  --el-color-primary-light-7: color-mix(
+    in srgb,
+    var(--ci-color-accent) 30%,
+    var(--ci-color-surface)
+  );
+  --el-color-primary-light-8: color-mix(
+    in srgb,
+    var(--ci-color-accent) 20%,
+    var(--ci-color-surface)
+  );
+  --el-color-primary-light-9: color-mix(
+    in srgb,
+    var(--ci-color-accent) 10%,
+    var(--ci-color-surface)
+  );
+
+  --el-color-success: var(--ci-color-success);
+  --el-color-success-dark-2: color-mix(in srgb, var(--ci-color-success) 80%, black);
+  --el-color-success-light-3: color-mix(
+    in srgb,
+    var(--ci-color-success) 70%,
+    var(--ci-color-surface)
+  );
+  --el-color-success-light-5: color-mix(
+    in srgb,
+    var(--ci-color-success) 50%,
+    var(--ci-color-surface)
+  );
+  --el-color-success-light-7: color-mix(
+    in srgb,
+    var(--ci-color-success) 30%,
+    var(--ci-color-surface)
+  );
+  --el-color-success-light-8: color-mix(
+    in srgb,
+    var(--ci-color-success) 20%,
+    var(--ci-color-surface)
+  );
+  --el-color-success-light-9: color-mix(
+    in srgb,
+    var(--ci-color-success) 10%,
+    var(--ci-color-surface)
+  );
+
+  --el-color-warning: var(--ci-color-warning);
+  --el-color-warning-dark-2: color-mix(in srgb, var(--ci-color-warning) 80%, black);
+  --el-color-warning-light-3: color-mix(
+    in srgb,
+    var(--ci-color-warning) 70%,
+    var(--ci-color-surface)
+  );
+  --el-color-warning-light-5: color-mix(
+    in srgb,
+    var(--ci-color-warning) 50%,
+    var(--ci-color-surface)
+  );
+  --el-color-warning-light-7: color-mix(
+    in srgb,
+    var(--ci-color-warning) 30%,
+    var(--ci-color-surface)
+  );
+  --el-color-warning-light-8: color-mix(
+    in srgb,
+    var(--ci-color-warning) 20%,
+    var(--ci-color-surface)
+  );
+  --el-color-warning-light-9: color-mix(
+    in srgb,
+    var(--ci-color-warning) 10%,
+    var(--ci-color-surface)
+  );
+
+  --el-color-danger: var(--ci-color-danger);
+  --el-color-error: var(--ci-color-danger);
+  --el-color-danger-dark-2: color-mix(in srgb, var(--ci-color-danger) 80%, black);
+  --el-color-error-dark-2: color-mix(in srgb, var(--ci-color-danger) 80%, black);
+  --el-color-danger-light-3: color-mix(
+    in srgb,
+    var(--ci-color-danger) 70%,
+    var(--ci-color-surface)
+  );
+  --el-color-error-light-3: color-mix(in srgb, var(--ci-color-danger) 70%, var(--ci-color-surface));
+  --el-color-danger-light-5: color-mix(
+    in srgb,
+    var(--ci-color-danger) 50%,
+    var(--ci-color-surface)
+  );
+  --el-color-error-light-5: color-mix(in srgb, var(--ci-color-danger) 50%, var(--ci-color-surface));
+  --el-color-danger-light-7: color-mix(
+    in srgb,
+    var(--ci-color-danger) 30%,
+    var(--ci-color-surface)
+  );
+  --el-color-error-light-7: color-mix(in srgb, var(--ci-color-danger) 30%, var(--ci-color-surface));
+  --el-color-danger-light-8: color-mix(
+    in srgb,
+    var(--ci-color-danger) 20%,
+    var(--ci-color-surface)
+  );
+  --el-color-error-light-8: color-mix(in srgb, var(--ci-color-danger) 20%, var(--ci-color-surface));
+  --el-color-danger-light-9: color-mix(
+    in srgb,
+    var(--ci-color-danger) 10%,
+    var(--ci-color-surface)
+  );
+  --el-color-error-light-9: color-mix(in srgb, var(--ci-color-danger) 10%, var(--ci-color-surface));
+
+  --el-color-info: var(--ci-color-info);
+  --el-color-info-dark-2: color-mix(in srgb, var(--ci-color-info) 80%, black);
+  --el-color-info-light-3: color-mix(in srgb, var(--ci-color-info) 70%, var(--ci-color-surface));
+  --el-color-info-light-5: color-mix(in srgb, var(--ci-color-info) 50%, var(--ci-color-surface));
+  --el-color-info-light-7: color-mix(in srgb, var(--ci-color-info) 30%, var(--ci-color-surface));
+  --el-color-info-light-8: color-mix(in srgb, var(--ci-color-info) 20%, var(--ci-color-surface));
+  --el-color-info-light-9: color-mix(in srgb, var(--ci-color-info) 10%, var(--ci-color-surface));
+
+  /* ------------------------------------------------------------ 文字色 */
+  --el-text-color-primary: var(--ci-color-text);
+  --el-text-color-regular: var(--ci-color-text);
+  --el-text-color-secondary: var(--ci-color-text-secondary);
+  --el-text-color-placeholder: var(--ci-color-text-placeholder);
+  --el-text-color-disabled: var(--ci-color-text-tertiary);
+  --el-text-color-primary-title: var(--ci-color-text);
+
+  /* ------------------------------------------------------------ 边框色 */
+  --el-border-color: var(--ci-color-border);
+  --el-border-color-light: var(--ci-color-separator);
+  --el-border-color-lighter: var(--ci-color-separator);
+  --el-border-color-extra-light: var(--ci-color-separator);
+  --el-border-color-hover: var(--ci-color-border-strong);
+  --el-border-color-darker: var(--ci-color-border-strong);
+
+  /* ------------------------------------------------------------ 填充色 */
+  --el-bg-color: var(--ci-color-surface);
+  --el-bg-color-page: var(--ci-color-bg);
+  --el-bg-color-overlay: var(--ci-color-surface);
+  --el-fill-color: var(--ci-color-surface-sunken);
+  --el-fill-color-light: var(--ci-color-surface-sunken);
+  --el-fill-color-lighter: var(--ci-color-surface-sunken);
+  --el-fill-color-extra-light: var(--ci-color-surface-sunken);
+  --el-fill-color-dark: var(--ci-color-border);
+  --el-fill-color-darker: var(--ci-color-border-strong);
+  --el-fill-color-blank: var(--ci-color-surface);
+  --el-mask-color: rgb(255 255 255 / 70%);
+  --el-mask-color-extra-light: rgb(255 255 255 / 30%);
+  --el-disabled-bg-color: var(--ci-color-surface-sunken);
+  --el-disabled-text-color: var(--ci-color-text-tertiary);
+  --el-disabled-border-color: var(--ci-color-border);
+
+  /* ------------------------------------------------------------ 圆角 */
+  --el-border-radius-base: var(--ci-radius-sm);
+  --el-border-radius-small: var(--ci-radius-xs);
+  --el-border-radius-round: var(--ci-radius-pill);
+  --el-border-radius-circle: 50%;
+
+  /* ------------------------------------------------------------ 阴影 */
+  --el-box-shadow: var(--ci-shadow-2);
+  --el-box-shadow-light: var(--ci-shadow-1);
+  --el-box-shadow-lighter: var(--ci-shadow-1);
+  --el-box-shadow-dark: var(--ci-shadow-3);
+
+  /* ------------------------------------------------------------ 动效 */
+  --el-transition-duration: var(--ci-duration-base);
+  --el-transition-duration-fast: var(--ci-duration-fast);
+  --el-transition-function-ease-in-out-bezier: var(--ci-ease-damped);
+  --el-transition-function-fast-bezier: var(--ci-ease-out);
+  --el-transition-all: all var(--ci-duration-fast) var(--ci-ease-out);
+  --el-transition-fade: opacity var(--ci-duration-base) var(--ci-ease-damped);
+  --el-transition-md-fade: var(--ci-transition-material);
+  --el-transition-border: border-color var(--ci-duration-fast) var(--ci-ease-out);
+  --el-transition-box-shadow: box-shadow var(--ci-duration-fast) var(--ci-ease-out);
+  --el-transition-color: color var(--ci-duration-fast) var(--ci-ease-out);
+
+  /* ------------------------------------------------------------ 层级 */
+  --el-index-normal: var(--ci-z-content);
+  --el-index-top: var(--ci-z-sticky);
+  --el-index-popper: var(--ci-z-overlay);
+}
+
+/* ==================================================================== 按钮 */
+/* Apple 的按钮是「填充 + 圆角 + 按下轻微缩放」，没有 Material 的涟漪与投影。 */
+.el-button {
+  border-radius: var(--ci-radius-sm);
+  font-weight: var(--ci-weight-medium);
+  letter-spacing: var(--ci-tracking-sm);
+  transition: var(--ci-transition-control);
+}
+
+.el-button:not(.is-text):not(.is-link):active {
+  transform: scale(var(--ci-press-scale));
+}
+
+.el-button.is-link,
+.el-button.is-text {
+  padding: 0 var(--ci-space-1);
+  font-weight: var(--ci-weight-regular);
+}
+
+.el-button.is-link:hover,
+.el-button.is-text:hover {
+  background: var(--ci-color-accent-soft);
+  border-radius: var(--ci-radius-xs);
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--ci-color-accent);
+  --el-button-border-color: var(--ci-color-accent);
+  --el-button-hover-bg-color: var(--ci-color-accent-hover);
+  --el-button-hover-border-color: var(--ci-color-accent-hover);
+  --el-button-active-bg-color: var(--ci-color-accent-pressed);
+  --el-button-active-border-color: var(--ci-color-accent-pressed);
+  --el-button-text-color: var(--ci-color-accent-contrast);
+}
+
+.el-button--success,
+.el-button--warning,
+.el-button--danger {
+  --el-button-text-color: var(--ci-color-text-inverse);
+}
+
+/* 默认按钮（次要动作）用「表面 + 描边」，不用灰底，避免整页按钮都很重。 */
+.el-button--default:not(.is-link):not(.is-text):not(.is-plain) {
+  --el-button-bg-color: var(--ci-color-surface);
+  --el-button-border-color: var(--ci-color-border-strong);
+  --el-button-hover-bg-color: var(--ci-color-surface-sunken);
+  --el-button-hover-border-color: var(--ci-color-border-strong);
+}
+
+/* ==================================================================== 输入 */
+/* 内描边代替 Material 的浮动标签 + 下划线（明确不沿用 Material 观感）。 */
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  border-radius: var(--ci-radius-sm);
+  background-color: var(--ci-color-surface);
+  box-shadow: var(--ci-shadow-field);
+  transition: var(--ci-transition-control);
+}
+
+.el-input__wrapper:hover,
+.el-textarea__inner:hover,
+.el-select__wrapper:hover {
+  box-shadow: inset 0 0 0 1px var(--ci-color-border-strong);
+}
+
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus,
+.el-select__wrapper.is-focused {
+  box-shadow:
+    inset 0 0 0 1px var(--ci-color-accent),
+    var(--ci-shadow-focus);
+}
+
+.el-input.is-disabled .el-input__wrapper,
+.el-textarea.is-disabled .el-textarea__inner {
+  background-color: var(--ci-color-surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--ci-color-border);
+}
+
+/* ==================================================================== 表单 */
+.el-form-item__label {
+  color: var(--ci-color-text-secondary);
+  font-weight: var(--ci-weight-regular);
+}
+
+/* ==================================================================== 表格 */
+/* ux-admin-portal：去掉斑马纹与重边框，用细分隔线 + 三级文字色表头，让数据本身是主角。 */
+.el-table {
+  --el-table-border-color: var(--ci-color-separator);
+  --el-table-border: 1px solid var(--ci-color-separator);
+  --el-table-header-bg-color: transparent;
+  --el-table-header-text-color: var(--ci-color-text-secondary);
+  --el-table-text-color: var(--ci-color-text);
+  --el-table-row-hover-bg-color: var(--ci-color-accent-soft);
+  --el-table-current-row-bg-color: var(--ci-color-accent-soft);
+  --el-table-fixed-box-shadow: 0 0 8px rgb(0 0 0 / 6%);
+  background-color: transparent;
+}
+
+.el-table th.el-table__cell {
+  font-size: var(--ci-text-xs);
+  font-weight: var(--ci-weight-medium);
+  background-color: var(--ci-color-surface-sunken);
+}
+
+.el-table .el-table__cell {
+  padding: var(--ci-space-3) var(--ci-space-3);
+}
+
+.el-table .cell {
+  line-height: var(--ci-leading-snug);
+}
+
+.el-table .el-button + .el-button {
+  margin-left: var(--ci-space-2);
+}
+
+/* ==================================================================== 分页 */
+.el-pagination {
+  --el-pagination-button-bg-color: transparent;
+  --el-pagination-hover-color: var(--ci-color-accent);
+  padding: var(--ci-space-2) var(--ci-space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.el-pagination.is-background .el-pager li,
+.el-pagination .btn-prev,
+.el-pagination .btn-next {
+  border-radius: var(--ci-radius-xs);
+}
+
+/* ================================================================ 弹层 / 抽屉 */
+/* 层级改由半透明材料表达：遮罩加轻微模糊，弹层自身大圆角 + 多层阴影。 */
+.el-overlay {
+  background-color: var(--ci-color-overlay);
+  backdrop-filter: var(--ci-material-blur-thin);
+  -webkit-backdrop-filter: var(--ci-material-blur-thin);
+}
+
+.el-dialog {
+  padding: 0;
+  border-radius: var(--ci-radius-xl);
+  box-shadow: var(--ci-shadow-4);
+  overflow: hidden;
+}
+
+.el-dialog__header {
+  display: flex;
+  align-items: center;
+  gap: var(--ci-space-3);
+  margin: 0;
+  padding: var(--ci-space-4) var(--ci-space-6);
+  border-bottom: 1px solid var(--ci-color-separator);
+}
+
+.el-dialog__title {
+  font-size: var(--ci-text-lg);
+  font-weight: var(--ci-weight-semibold);
+  letter-spacing: var(--ci-tracking-lg);
+  color: var(--ci-color-text);
+}
+
+.el-dialog__headerbtn {
+  top: var(--ci-space-3);
+  right: var(--ci-space-3);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ci-radius-xs);
+  transition: var(--ci-transition-control);
+}
+
+.el-dialog__headerbtn:hover {
+  background: var(--ci-color-surface-sunken);
+}
+
+.el-dialog__body {
+  padding: var(--ci-space-6);
+}
+
+.el-dialog__footer {
+  padding: var(--ci-space-4) var(--ci-space-6);
+  border-top: 1px solid var(--ci-color-separator);
+  background: var(--ci-color-surface-sunken);
+}
+
+.el-drawer {
+  border-radius: var(--ci-radius-xl) 0 0 var(--ci-radius-xl);
+  box-shadow: var(--ci-shadow-4);
+}
+
+.el-drawer__header {
+  margin: 0;
+  padding: var(--ci-space-4) var(--ci-space-6);
+  border-bottom: 1px solid var(--ci-color-separator);
+}
+
+.el-drawer__title {
+  font-size: var(--ci-text-lg);
+  font-weight: var(--ci-weight-semibold);
+  letter-spacing: var(--ci-tracking-lg);
+  color: var(--ci-color-text);
+}
+
+.el-drawer__body {
+  padding: var(--ci-space-6);
+}
+
+.el-message-box {
+  padding: var(--ci-space-6);
+  border-radius: var(--ci-radius-xl);
+  box-shadow: var(--ci-shadow-4);
+}
+
+/* ================================================================ 浮层组件 */
+.el-popper,
+.el-select__popper,
+.el-dropdown__popper,
+.el-picker__popper {
+  border-radius: var(--ci-radius-md);
+  box-shadow: var(--ci-shadow-3);
+}
+
+.el-dropdown-menu__item,
+.el-select-dropdown__item {
+  border-radius: var(--ci-radius-xs);
+  margin: 2px var(--ci-space-1);
+  padding: 0 var(--ci-space-3);
+}
+
+.el-dropdown-menu__item:not(.is-disabled):hover,
+.el-select-dropdown__item.is-hovering {
+  background: var(--ci-color-accent-soft);
+  color: var(--ci-color-accent);
+}
+
+/* ==================================================================== 其他 */
+.el-card {
+  border-radius: var(--ci-radius-lg);
+  border-color: var(--ci-color-separator);
+  box-shadow: var(--ci-shadow-1);
+}
+
+.el-card__header {
+  padding: var(--ci-space-4) var(--ci-space-5);
+  border-bottom-color: var(--ci-color-separator);
+  font-weight: var(--ci-weight-medium);
+}
+
+.el-tag {
+  border-radius: var(--ci-radius-xs);
+  font-weight: var(--ci-weight-medium);
+  border-color: transparent;
+}
+
+.el-switch {
+  --el-switch-on-color: var(--ci-color-accent);
+  --el-switch-off-color: var(--ci-color-border-strong);
+}
+
+.el-checkbox,
+.el-radio {
+  --el-checkbox-checked-text-color: var(--ci-color-text);
+  --el-radio-checked-text-color: var(--ci-color-text);
+}
+
+.el-tree {
+  --el-tree-node-hover-bg-color: var(--ci-color-accent-soft);
+  background: transparent;
+}
+
+.el-tree-node__content {
+  height: 34px;
+  border-radius: var(--ci-radius-xs);
+}
+
+.el-menu {
+  border-right: none;
+  background: transparent;
+}
+
+.el-tabs__item {
+  font-weight: var(--ci-weight-medium);
+}
+
+.el-descriptions__label {
+  color: var(--ci-color-text-secondary);
+  font-weight: var(--ci-weight-regular);
+}
+
+.el-empty__description {
+  color: var(--ci-color-text-tertiary);
+}
+
+.el-message,
+.el-notification {
+  border-radius: var(--ci-radius-lg);
+  box-shadow: var(--ci-shadow-3);
+}
+
+.el-loading-mask {
+  background-color: var(--ci-color-surface-translucent);
+  backdrop-filter: var(--ci-material-blur-thin);
+  -webkit-backdrop-filter: var(--ci-material-blur-thin);
+}
+
+.el-divider {
+  border-color: var(--ci-color-separator);
+}
+
+.el-link {
+  font-weight: var(--ci-weight-regular);
+}

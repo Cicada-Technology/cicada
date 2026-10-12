@@ -1,0 +1,900 @@
+use sea_orm_migration::prelude::*;
+
+/// 初始核心 schema：租户 + 身份 + RBAC + 组织（P0 核心域）。
+/// 字典/参数/公告/审计/监控/任务/代码生成等表在后续迁移中追加。
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // ---- 租户 ----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysTenant::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysTenant::TenantId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysTenant::TenantName)
+                            .string_len(64)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysTenant::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    // 租户套餐（可空 = 无套餐 = 不限额）；套餐表见
+                    // `m20261010_000008_tenant_package_notify_apikey`。这里一并建出，
+                    // 避免「先建表、后加列」的两段式迁移。
+                    .col(ColumnDef::new(SysTenant::PackageId).big_integer().null())
+                    .col(ColumnDef::new(SysTenant::Remark).text().null())
+                    .col(ColumnDef::new(SysTenant::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysTenant::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysTenant::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysTenant::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 用户（账号，一人一行）----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysUser::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysUser::UserId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(SysUser::TenantId).big_integer().not_null())
+                    .col(ColumnDef::new(SysUser::UserName).string_len(64).not_null())
+                    .col(ColumnDef::new(SysUser::NickName).string_len(64).not_null())
+                    .col(ColumnDef::new(SysUser::DeptId).big_integer().null())
+                    .col(ColumnDef::new(SysUser::Password).string_len(128).not_null())
+                    .col(ColumnDef::new(SysUser::Email).string_len(128).null())
+                    .col(ColumnDef::new(SysUser::Phonenumber).string_len(16).null())
+                    .col(
+                        ColumnDef::new(SysUser::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysUser::LoginIp).string_len(128).null())
+                    .col(
+                        ColumnDef::new(SysUser::LoginDate)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysUser::Version)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysUser::DeletedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(SysUser::Remark).text().null())
+                    .col(ColumnDef::new(SysUser::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysUser::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysUser::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysUser::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    // 可选增强：TOTP 二次验证；列在首建时一并给出。
+                    .col(ColumnDef::new(SysUser::TotpSecret).text().null())
+                    .col(
+                        ColumnDef::new(SysUser::TotpEnabled)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 登录身份绑定----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysUserIdentity::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysUserIdentity::IdentityId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysUserIdentity::TenantId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysUserIdentity::UserId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysUserIdentity::IdentityType)
+                            .string_len(32)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysUserIdentity::Identifier)
+                            .string_len(128)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysUserIdentity::Provider)
+                            .string_len(64)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysUserIdentity::VerifiedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysUserIdentity::IsPrimary)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(SysUserIdentity::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 部门（树）----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysDept::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysDept::DeptId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(SysDept::TenantId).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(SysDept::ParentId)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysDept::Ancestors)
+                            .string_len(512)
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(ColumnDef::new(SysDept::DeptName).string_len(64).not_null())
+                    .col(
+                        ColumnDef::new(SysDept::OrderNum)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysDept::Leader).string_len(64).null())
+                    .col(ColumnDef::new(SysDept::Phone).string_len(16).null())
+                    .col(ColumnDef::new(SysDept::Email).string_len(128).null())
+                    .col(
+                        ColumnDef::new(SysDept::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysDept::Version)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysDept::DeletedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(SysDept::Remark).text().null())
+                    .col(ColumnDef::new(SysDept::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysDept::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysDept::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysDept::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 角色 ----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysRole::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysRole::RoleId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(SysRole::TenantId).big_integer().not_null())
+                    .col(ColumnDef::new(SysRole::RoleName).string_len(64).not_null())
+                    .col(ColumnDef::new(SysRole::RoleKey).string_len(64).not_null())
+                    .col(
+                        ColumnDef::new(SysRole::RoleSort)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysRole::DataScope)
+                            .small_integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(
+                        ColumnDef::new(SysRole::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysRole::Version)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysRole::DeletedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(SysRole::Remark).text().null())
+                    .col(ColumnDef::new(SysRole::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysRole::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysRole::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysRole::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 菜单/权限点（全局，无 tenant_id）----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysMenu::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysMenu::MenuId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(SysMenu::MenuName).string_len(64).not_null())
+                    .col(
+                        ColumnDef::new(SysMenu::ParentId)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysMenu::OrderNum)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysMenu::Path).string_len(255).null())
+                    .col(ColumnDef::new(SysMenu::Component).string_len(255).null())
+                    .col(ColumnDef::new(SysMenu::Query).string_len(255).null())
+                    .col(
+                        ColumnDef::new(SysMenu::IsFrame)
+                            .small_integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(
+                        ColumnDef::new(SysMenu::IsCache)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysMenu::MenuType).string_len(1).not_null())
+                    .col(
+                        ColumnDef::new(SysMenu::Visible)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysMenu::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysMenu::Perms).string_len(128).null())
+                    .col(ColumnDef::new(SysMenu::Icon).string_len(128).null())
+                    .col(ColumnDef::new(SysMenu::Remark).text().null())
+                    .col(ColumnDef::new(SysMenu::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysMenu::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysMenu::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysMenu::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 岗位 ----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysPost::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysPost::PostId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(SysPost::TenantId).big_integer().not_null())
+                    .col(ColumnDef::new(SysPost::PostCode).string_len(64).not_null())
+                    .col(ColumnDef::new(SysPost::PostName).string_len(64).not_null())
+                    .col(
+                        ColumnDef::new(SysPost::PostSort)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysPost::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysPost::Version)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysPost::DeletedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(SysPost::Remark).text().null())
+                    .col(ColumnDef::new(SysPost::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysPost::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysPost::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysPost::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 关联表（不带 tenant_id，用外键一致性约束）----
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysUserRole::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(SysUserRole::UserId).big_integer().not_null())
+                    .col(ColumnDef::new(SysUserRole::RoleId).big_integer().not_null())
+                    .primary_key(
+                        Index::create()
+                            .col(SysUserRole::UserId)
+                            .col(SysUserRole::RoleId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysRoleMenu::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(SysRoleMenu::RoleId).big_integer().not_null())
+                    .col(ColumnDef::new(SysRoleMenu::MenuId).big_integer().not_null())
+                    .primary_key(
+                        Index::create()
+                            .col(SysRoleMenu::RoleId)
+                            .col(SysRoleMenu::MenuId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysRoleDept::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(SysRoleDept::RoleId).big_integer().not_null())
+                    .col(ColumnDef::new(SysRoleDept::DeptId).big_integer().not_null())
+                    .primary_key(
+                        Index::create()
+                            .col(SysRoleDept::RoleId)
+                            .col(SysRoleDept::DeptId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysUserPost::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(SysUserPost::UserId).big_integer().not_null())
+                    .col(ColumnDef::new(SysUserPost::PostId).big_integer().not_null())
+                    .primary_key(
+                        Index::create()
+                            .col(SysUserPost::UserId)
+                            .col(SysUserPost::PostId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 索引 ----
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_user_tenant")
+                    .table(SysUser::Table)
+                    .col(SysUser::TenantId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uk_sys_user_tenant_name")
+                    .table(SysUser::Table)
+                    .col(SysUser::TenantId)
+                    .col(SysUser::UserName)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uk_sys_user_identity")
+                    .table(SysUserIdentity::Table)
+                    .col(SysUserIdentity::TenantId)
+                    .col(SysUserIdentity::IdentityType)
+                    .col(SysUserIdentity::Identifier)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_user_identity_user")
+                    .table(SysUserIdentity::Table)
+                    .col(SysUserIdentity::UserId)
+                    .col(SysUserIdentity::IdentityType)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_dept_tenant")
+                    .table(SysDept::Table)
+                    .col(SysDept::TenantId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_role_tenant")
+                    .table(SysRole::Table)
+                    .col(SysRole::TenantId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uk_sys_role_tenant_key")
+                    .table(SysRole::Table)
+                    .col(SysRole::TenantId)
+                    .col(SysRole::RoleKey)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_post_tenant")
+                    .table(SysPost::Table)
+                    .col(SysPost::TenantId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uk_sys_post_tenant_code")
+                    .table(SysPost::Table)
+                    .col(SysPost::TenantId)
+                    .col(SysPost::PostCode)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        // ---- 外键（关联表一致性，防止跨租户串联）----
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .name("fk_sys_user_role_user")
+                    .from(SysUserRole::Table, SysUserRole::UserId)
+                    .to(SysUser::Table, SysUser::UserId)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .name("fk_sys_user_role_role")
+                    .from(SysUserRole::Table, SysUserRole::RoleId)
+                    .to(SysRole::Table, SysRole::RoleId)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .name("fk_sys_role_menu_role")
+                    .from(SysRoleMenu::Table, SysRoleMenu::RoleId)
+                    .to(SysRole::Table, SysRole::RoleId)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .name("fk_sys_role_menu_menu")
+                    .from(SysRoleMenu::Table, SysRoleMenu::MenuId)
+                    .to(SysMenu::Table, SysMenu::MenuId)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .name("fk_sys_role_dept_role")
+                    .from(SysRoleDept::Table, SysRoleDept::RoleId)
+                    .to(SysRole::Table, SysRole::RoleId)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .name("fk_sys_role_dept_dept")
+                    .from(SysRoleDept::Table, SysRoleDept::DeptId)
+                    .to(SysDept::Table, SysDept::DeptId)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .name("fk_sys_user_post_user")
+                    .from(SysUserPost::Table, SysUserPost::UserId)
+                    .to(SysUser::Table, SysUser::UserId)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .name("fk_sys_user_post_post")
+                    .from(SysUserPost::Table, SysUserPost::PostId)
+                    .to(SysPost::Table, SysPost::PostId)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                    .to_owned(),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // 反向删除：先关联表、后主表，全部 cascade。
+        manager
+            .drop_table(Table::drop().table(SysUserPost::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysRoleDept::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysRoleMenu::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysUserRole::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysPost::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysMenu::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysRole::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysDept::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(
+                Table::drop()
+                    .table(SysUserIdentity::Table)
+                    .cascade()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysUser::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysTenant::Table).cascade().to_owned())
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(DeriveIden)]
+enum SysTenant {
+    Table,
+    TenantId,
+    TenantName,
+    Status,
+    PackageId,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+}
+
+#[derive(DeriveIden)]
+enum SysUser {
+    Table,
+    UserId,
+    TenantId,
+    UserName,
+    NickName,
+    DeptId,
+    Password,
+    Email,
+    Phonenumber,
+    Status,
+    LoginIp,
+    LoginDate,
+    Version,
+    DeletedAt,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+    TotpSecret,
+    TotpEnabled,
+}
+
+#[derive(DeriveIden)]
+enum SysUserIdentity {
+    Table,
+    IdentityId,
+    TenantId,
+    UserId,
+    IdentityType,
+    Identifier,
+    Provider,
+    VerifiedAt,
+    IsPrimary,
+    CreateTime,
+}
+
+#[derive(DeriveIden)]
+enum SysDept {
+    Table,
+    DeptId,
+    TenantId,
+    ParentId,
+    Ancestors,
+    DeptName,
+    OrderNum,
+    Leader,
+    Phone,
+    Email,
+    Status,
+    Version,
+    DeletedAt,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+}
+
+#[derive(DeriveIden)]
+enum SysRole {
+    Table,
+    RoleId,
+    TenantId,
+    RoleName,
+    RoleKey,
+    RoleSort,
+    DataScope,
+    Status,
+    Version,
+    DeletedAt,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+}
+
+#[derive(DeriveIden)]
+enum SysMenu {
+    Table,
+    MenuId,
+    MenuName,
+    ParentId,
+    OrderNum,
+    Path,
+    Component,
+    Query,
+    IsFrame,
+    IsCache,
+    MenuType,
+    Visible,
+    Status,
+    Perms,
+    Icon,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+}
+
+#[derive(DeriveIden)]
+enum SysPost {
+    Table,
+    PostId,
+    TenantId,
+    PostCode,
+    PostName,
+    PostSort,
+    Status,
+    Version,
+    DeletedAt,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+}
+
+#[derive(DeriveIden)]
+enum SysUserRole {
+    Table,
+    UserId,
+    RoleId,
+}
+
+#[derive(DeriveIden)]
+enum SysRoleMenu {
+    Table,
+    RoleId,
+    MenuId,
+}
+
+#[derive(DeriveIden)]
+enum SysRoleDept {
+    Table,
+    RoleId,
+    DeptId,
+}
+
+#[derive(DeriveIden)]
+enum SysUserPost {
+    Table,
+    UserId,
+    PostId,
+}

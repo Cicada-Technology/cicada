@@ -1,0 +1,18 @@
+//! {{ function_name }}（由 cicada 代码生成器产出，作者：{{ function_author }}）。
+//!
+//! 注册到应用组合根：
+//!
+//! ```ignore
+//! AppBuilder::new(config).with_module(Box::new(
+//!     {{ module_name }}::{{ business_name }}::{{ struct_name }},
+//! ))
+//! ```
+//!
+//! 表 `{{ table_name }}` 的属主是本模块；权限点前缀 `{{ perm_prefix }}`。
+
+pub mod dto;
+pub mod entity;
+pub mod handler;
+pub mod module;
+
+pub use module::{{ struct_name }};

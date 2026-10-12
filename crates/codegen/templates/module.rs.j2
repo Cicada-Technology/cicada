@@ -1,0 +1,22 @@
+//! {{ function_name }} 模块声明（由 cicada 代码生成器产出）。
+//!
+//! `owns` 声明数据属主、`perms` 声明权限点、`routes` 交出带元数据的路由；
+//! 装配期会把三者与路由上的 `#[require_perm]` 做双向对账，对不上就不启动。
+
+use cicada_web::{Manifest, Module, Permission, TableName};
+
+use super::handler::routes;
+
+/// {{ function_name }}模块。
+pub struct {{ struct_name }};
+
+impl Module for {{ struct_name }} {
+    fn manifest(self: Box<Self>) -> Manifest {
+        Manifest::new("{{ module_name }}:{{ business_name }}")
+            .routes(routes)
+            .owns([TableName("{{ table_name }}")])
+            .perms([
+{% for p in perms %}                Permission::new("{{ p }}"),
+{% endfor %}            ])
+    }
+}

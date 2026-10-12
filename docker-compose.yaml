@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: cicada-postgres
+    restart: unless-stopped
+    # 测试台是「一个用例一个 schema」，每次跑前 `DROP SCHEMA … CASCADE` 重建整套框架表 +
+    # 日志分区（测试分层）。CASCADE 要给事务里每个对象取锁，默认 max_locks_per_transaction=64
+    # （≈64×100 条共享锁）在 10 个用例并行时会撞 `53200 out of shared memory`。
+    command: ["postgres", "-c", "max_locks_per_transaction=256"]
+    environment:
+      POSTGRES_USER: postgres # 超级用户（root 等价）
+      POSTGRES_PASSWORD: "2026@cicada"
+      POSTGRES_DB: cicada
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cicada"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # 应用本体（开发环境一键起 … + server）。首次会构建镜像，之后走缓存。
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cicada-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # 镜像**不**烘 `config/default.yaml`（见 Dockerfile 末段：烘进去会让镜像随开发者机器漂移，
+      # 且文件一旦存在，env 就盖不住端口等了）。容器里没有该文件，配置走「env + 代码默认值」，
+      # 连接串因此必须由这两个变量给（配置优先级最高一档）。
+      DATABASE_URL: "postgres://cicada:2025%40hanmole@postgres:5432/cicada"
+      REDIS_URL: "redis://redis:6379/0"
+    ports:
+      # 宿主侧默认只回环暴露，且用 8081：前端 vite 的代理目标就是它（web/vite.config.ts），
+      # 与本机直接跑二进制的端口一致；8080 在很多开发机上已被别的服务占着。
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - server-data:/app/data
+
+  redis:
+    image: redis:7
+    container_name: cicada-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
+  server-data:

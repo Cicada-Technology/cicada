@@ -1,0 +1,82 @@
+# cargo-deny 配置（卡重复版本、许可证与已知漏洞； 流水线里的 `cargo deny/audit`）。
+#
+# 本地可离线跑的两项：`cargo deny check licenses bans`。
+# `advisories` 要拉 RustSec 的 advisory DB（GitHub），内网环境跑不动，交给 CI；
+# 真出现高危漏洞需要临时放行时，写进下面的 `ignore` 并附 RUSTSEC 编号与到期理由，
+# 不要整条规则关掉。
+
+[graph]
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "aarch64-unknown-linux-gnu" },
+    { triple = "x86_64-unknown-linux-musl" },
+]
+
+[advisories]
+version = 2
+# 下面每一条都是「已知、已核过不可利用、且上游暂无可用修复版」的项，
+# 写清楚命中路径与移除条件；不要靠关规则遮掉。
+ignore = [
+    # rsa：`jsonwebtoken` 无条件引入（不按算法裁 feature），本项目 JWT 只用 EdDSA/HS256，
+    # 不碰 RSA 签验。上游 rsa 0.9.10 已是最新，0.10 修复版发布后移除。
+    "RUSTSEC-2023-0071",
+    # unsafe-libyaml：`serde_yaml` 的传递依赖，只解析仓库内的 config/*.yaml（受控输入），
+    # 不解析上传内容。serde_yaml 自身已停更，换 YAML 后端是独立决策（见待确认项）。
+    "RUSTSEC-2024-0449",
+    # zip 三条都是「把压缩包解压到磁盘」才可利用：本项目只写包（codegen 生成下载）
+    # 与只读表（calamine 在内存里解析 .xlsx），从不调 extract*、不从包名落盘。
+    # zip 8.6.0 已是最新，等修复版发布后移除。
+    "RUSTSEC-2026-0367",
+    "RUSTSEC-2026-0368",
+    "RUSTSEC-2026-0369",
+]
+
+[licenses]
+version = 2
+# 许可证能确定到 80% 以上才采信；低于此值要人工看一眼。
+confidence-threshold = 0.8
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "ISC",
+    "Zlib",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    # lettre 的 quoted-printable 编码器是 0BSD（无条款的 BSD，OSI 认可，等价于公共领域）。
+    "0BSD",
+    "BSL-1.0",
+    "Unicode-3.0",
+    # webpki-roots 的根证书清单用数据许可，不是代码许可；用它的只有 rustls 的信任锚。
+    "CDLA-Permissive-2.0",
+    # 内容安全的富文本白名单清洗（ammonia）带来的 servo 系 HTML 解析器（html5ever / cssparser /
+    # selectors 等）是 MPL-2.0：文件级弱 copyleft——不改这些文件就没有开源义务，
+    # 而我们只是把它当依赖调用。OSI/FSF 均认可。
+    "MPL-2.0",
+]
+# 双许可里出现 None 的（`MIT OR Apache-2.0`）按第一个算，不必逐个列组合。
+private = { ignore = true }
+
+[bans]
+# 重复版本：警告而不失败——传递依赖里同 crate 多版本很常见（例如 `windows-sys` 系列），
+# 硬卡会把 CI 变成升级游戏。真正在意的（同一生态两套实现）用下面的 `multiple-versions`
+# 例外逐条 deny。
+multiple-versions = "warn"
+highlight = "all"
+allow = []
+deny = [
+    # TLS 只走 rustls：混进 native-tls/openssl 会把系统 OpenSSL 变成运行时依赖，
+    # 也毁掉部署的 musl 静态链接产物。
+    { crate = "native-tls", wrappers = [] },
+    { crate = "openssl", wrappers = [] },
+    { crate = "openssl-sys", wrappers = [] },
+]
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

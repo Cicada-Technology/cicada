@@ -1,0 +1,369 @@
+use sea_orm_migration::prelude::*;
+
+/// 字典 / 参数 / 公告（全局表，无 tenant_id）。
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysDictType::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysDictType::DictId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysDictType::DictName)
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysDictType::DictType)
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysDictType::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysDictType::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysDictType::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysDictType::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysDictType::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(SysDictType::Remark).text().null())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uk_sys_dict_type")
+                    .table(SysDictType::Table)
+                    .col(SysDictType::DictType)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysDictData::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysDictData::DictCode)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysDictData::DictSort)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysDictData::DictLabel)
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysDictData::DictValue)
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysDictData::DictType)
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysDictData::CssClass).string_len(100).null())
+                    .col(
+                        ColumnDef::new(SysDictData::ListClass)
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysDictData::IsDefault)
+                            .string_len(1)
+                            .not_null()
+                            .default("N"),
+                    )
+                    .col(
+                        ColumnDef::new(SysDictData::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysDictData::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysDictData::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysDictData::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysDictData::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(SysDictData::Remark).text().null())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_dict_data_type")
+                    .table(SysDictData::Table)
+                    .col(SysDictData::DictType)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysConfig::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysConfig::ConfigId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysConfig::ConfigName)
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysConfig::ConfigKey)
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysConfig::ConfigValue)
+                            .string_len(500)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysConfig::ConfigType)
+                            .string_len(1)
+                            .not_null()
+                            .default("N"),
+                    )
+                    .col(ColumnDef::new(SysConfig::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysConfig::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysConfig::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysConfig::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(SysConfig::Remark).text().null())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uk_sys_config_key")
+                    .table(SysConfig::Table)
+                    .col(SysConfig::ConfigKey)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysNotice::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysNotice::NoticeId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotice::NoticeTitle)
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNotice::NoticeType)
+                            .small_integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(ColumnDef::new(SysNotice::NoticeContent).text().null())
+                    .col(
+                        ColumnDef::new(SysNotice::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(SysNotice::CreateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysNotice::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysNotice::UpdateBy).string_len(64).null())
+                    .col(
+                        ColumnDef::new(SysNotice::UpdateTime)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(SysNotice::Remark).text().null())
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysNoticeRead::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysNoticeRead::NoticeId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysNoticeRead::UserId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .col(SysNoticeRead::NoticeId)
+                            .col(SysNoticeRead::UserId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(
+                Table::drop()
+                    .table(SysNoticeRead::Table)
+                    .cascade()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysNotice::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysConfig::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysDictData::Table).cascade().to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysDictType::Table).cascade().to_owned())
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(DeriveIden)]
+enum SysDictType {
+    Table,
+    DictId,
+    DictName,
+    DictType,
+    Status,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+    Remark,
+}
+
+#[derive(DeriveIden)]
+enum SysDictData {
+    Table,
+    DictCode,
+    DictSort,
+    DictLabel,
+    DictValue,
+    DictType,
+    CssClass,
+    ListClass,
+    IsDefault,
+    Status,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+    Remark,
+}
+
+#[derive(DeriveIden)]
+enum SysConfig {
+    Table,
+    ConfigId,
+    ConfigName,
+    ConfigKey,
+    ConfigValue,
+    ConfigType,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+    Remark,
+}
+
+#[derive(DeriveIden)]
+enum SysNotice {
+    Table,
+    NoticeId,
+    NoticeTitle,
+    NoticeType,
+    NoticeContent,
+    Status,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+    Remark,
+}
+
+#[derive(DeriveIden)]
+enum SysNoticeRead {
+    Table,
+    NoticeId,
+    UserId,
+}

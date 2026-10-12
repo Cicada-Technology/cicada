@@ -1,0 +1,20 @@
+[package]
+name = "cicada-kernel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+testkit = []
+
+[dependencies]
+# kernel 是 L0，不依赖任何其它 cicada crate。
+serde = { workspace = true }
+thiserror = { workspace = true }
+sea-orm = { workspace = true }
+sea-query = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tokio = { workspace = true }

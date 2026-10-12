@@ -1,0 +1,52 @@
+[package]
+name = "{{project-name}}"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+publish = false
+# 本工程有两个 bin（服务与 `migrate`），`cargo run` 默认起服务。
+default-run = "{{project-name}}"
+
+[dependencies]
+# 门面 crate：装配骨架（bootstrap）+ 分层别名（cicada::web / cicada::kernel / …）。
+cicada = { {{cicada_dep}}, features = ["full"] }
+# 代码生成器的产物在源码里直接引用下面这几个 crate 名（`cicada_web::AppState`、
+# `cicada_kernel::scope::Query`、`cicada_macros::DataScoped`、`#[audit]` 展开出的
+# `cicada_audit::AuditMeta`），因此它们必须与门面**同源同版本**地一并声明。
+# 五处依赖的来源由 `cicada new --cicada`（或 cargo-generate 的占位符）一次性填好；
+# 手工改版本时五处要一起改。
+cicada-kernel = { {{cicada_kernel_dep}} }
+cicada-macros = { {{cicada_macros_dep}} }
+cicada-audit = { {{cicada_audit_dep}} }
+cicada-web = { {{cicada_web_dep}} }
+
+# 生态 crate：生成的 handler 是标准 axum + SeaORM 代码，不额外包一层。
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
+axum = { version = "0.8", features = ["multipart"] }
+sea-orm = { version = "2", features = [
+    "macros",
+    "runtime-tokio",
+    "sqlx-postgres",
+    "with-chrono",
+    "with-uuid",
+    "with-rust_decimal",
+    "with-json",
+] }
+sea-orm-migration = { version = "2", features = [
+    "runtime-tokio",
+    "sqlx-postgres",
+    "with-chrono",
+    "with-uuid",
+    "with-rust_decimal",
+    "with-json",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
+rust_decimal = "1"
+tracing = "0.1"
+utoipa = { version = "6", features = ["axum_extras", "chrono", "decimal", "uuid"] }
+
+[profile.release]
+lto = "thin"
+strip = true

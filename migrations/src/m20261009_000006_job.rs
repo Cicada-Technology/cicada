@@ -1,0 +1,224 @@
+use sea_orm_migration::prelude::*;
+
+/// `sys_job` / `sys_job_log`：定时任务定义与执行日志。属主 `cicada-jobs`。
+///
+/// 调用目标 `invoke_target` 存的是注册表 key（不是 Java 类名/表达式），
+/// 从根上排除参考实现定时任务反序列化 RCE。
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[derive(DeriveIden)]
+enum SysJob {
+    Table,
+    JobId,
+    TenantId,
+    JobName,
+    JobGroup,
+    InvokeTarget,
+    CronExpression,
+    Concurrency,
+    TimeoutSecs,
+    MaxRetry,
+    Status,
+    Remark,
+    CreateBy,
+    CreateTime,
+    UpdateBy,
+    UpdateTime,
+    DeletedAt,
+}
+
+#[derive(DeriveIden)]
+enum SysJobLog {
+    Table,
+    JobLogId,
+    TenantId,
+    JobId,
+    JobName,
+    JobGroup,
+    InvokeTarget,
+    InstanceId,
+    TriggerKind,
+    StartTime,
+    EndTime,
+    DurationMs,
+    Status,
+    Result,
+    TraceId,
+    CreateTime,
+}
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysJob::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysJob::JobId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(SysJob::TenantId).big_integer().not_null())
+                    .col(ColumnDef::new(SysJob::JobName).string_len(64).not_null())
+                    .col(
+                        ColumnDef::new(SysJob::JobGroup)
+                            .string_len(64)
+                            .not_null()
+                            .default("DEFAULT"),
+                    )
+                    .col(
+                        ColumnDef::new(SysJob::InvokeTarget)
+                            .string_len(500)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysJob::CronExpression)
+                            .string_len(255)
+                            .not_null(),
+                    )
+                    // 0 允许 / 1 禁止 / 2 队列。
+                    .col(
+                        ColumnDef::new(SysJob::Concurrency)
+                            .small_integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(
+                        ColumnDef::new(SysJob::TimeoutSecs)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(SysJob::MaxRetry)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    // 0 正常 / 1 暂停。
+                    .col(
+                        ColumnDef::new(SysJob::Status)
+                            .small_integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(ColumnDef::new(SysJob::Remark).string_len(500))
+                    .col(ColumnDef::new(SysJob::CreateBy).string_len(64))
+                    .col(
+                        ColumnDef::new(SysJob::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(ColumnDef::new(SysJob::UpdateBy).string_len(64))
+                    .col(ColumnDef::new(SysJob::UpdateTime).timestamp_with_time_zone())
+                    .col(ColumnDef::new(SysJob::DeletedAt).timestamp_with_time_zone())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("uq_sys_job_tenant_name_group")
+                    .table(SysJob::Table)
+                    .col(SysJob::TenantId)
+                    .col(SysJob::JobName)
+                    .col(SysJob::JobGroup)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(SysJobLog::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SysJobLog::JobLogId)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(SysJobLog::TenantId).big_integer().not_null())
+                    .col(ColumnDef::new(SysJobLog::JobId).big_integer().not_null())
+                    .col(ColumnDef::new(SysJobLog::JobName).string_len(64).not_null())
+                    .col(
+                        ColumnDef::new(SysJobLog::JobGroup)
+                            .string_len(64)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysJobLog::InvokeTarget)
+                            .string_len(500)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysJobLog::InstanceId)
+                            .string_len(64)
+                            .not_null(),
+                    )
+                    // 0 调度 / 1 手动。
+                    .col(
+                        ColumnDef::new(SysJobLog::TriggerKind)
+                            .small_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SysJobLog::StartTime)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(SysJobLog::EndTime).timestamp_with_time_zone())
+                    .col(ColumnDef::new(SysJobLog::DurationMs).big_integer())
+                    // 0 成功 / 1 失败。
+                    .col(ColumnDef::new(SysJobLog::Status).small_integer().not_null())
+                    .col(ColumnDef::new(SysJobLog::Result).text())
+                    .col(ColumnDef::new(SysJobLog::TraceId).string_len(64))
+                    .col(
+                        ColumnDef::new(SysJobLog::CreateTime)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_job_log_job_time")
+                    .table(SysJobLog::Table)
+                    .col(SysJobLog::JobId)
+                    .col(SysJobLog::StartTime)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_sys_job_log_tenant_time")
+                    .table(SysJobLog::Table)
+                    .col(SysJobLog::TenantId)
+                    .col(SysJobLog::StartTime)
+                    .to_owned(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(SysJobLog::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SysJob::Table).to_owned())
+            .await
+    }
+}

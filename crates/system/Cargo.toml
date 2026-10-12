@@ -1,0 +1,26 @@
+[package]
+name = "cicada-system"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cicada-kernel = { workspace = true }
+cicada-macros = { workspace = true }
+cicada-infra = { workspace = true }
+cicada-ports = { workspace = true }
+argon2 = { workspace = true }
+ammonia = { workspace = true }
+uuid = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+sea-orm = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+cicada-migrations = { workspace = true }
+sea-orm-migration = { workspace = true }

@@ -1,0 +1,10 @@
+target
+web/node_modules
+web/dist
+.git
+docs
+data
+**/*.db
+.env
+.env.local
+config/local.yaml

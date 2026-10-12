@@ -1,0 +1,306 @@
+/*!
+ * 设计令牌（v1 设计语言）。
+ *
+ * 约定：颜色 / 间距 / 圆角 / 阴影 / 字距 / 时长**只从这里取**。组件里出现魔法值时，
+ * 先在本文件补一个语义名，再引用——这样「换一层皮」只改一个文件。
+ *
+ * 明暗只认 `html[data-theme]`（由 index.html 的内联脚本在样式加载前写好，默认跟随系统），
+ * 不写 `prefers-color-scheme` 媒体查询块——否则每个令牌要写两遍、第三遍必然漂移。
+ *
+ * 三态无障碍在文末统一收口：reduced-motion（动效）、reduced-transparency（材料）、
+ * contrast（边框与文字对比）。
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ---------------------------------------------------------------- 字体 */
+  /* 系统字体优先：不下载 Web 字体，首屏无 FOUT，中英文都由系统给出正确字形。 */
+  --ci-font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Noto Sans SC', system-ui, sans-serif;
+  --ci-font-mono:
+    ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* 光学字号：可变字体（SF / Segoe Variable）会自动细调，不支持的字体静默忽略。 */
+  --ci-font-optical-sizing: auto;
+
+  /* -------------------------------------------------- 字号 / 字重 / 行高 */
+  /* 阶梯对应 Apple 的 caption2 → largeTitle 语义；后台信息密度高，正文取 14px。 */
+  --ci-text-2xs: 11px;
+  --ci-text-xs: 12px;
+  --ci-text-sm: 13px;
+  --ci-text-base: 14px;
+  --ci-text-md: 15px;
+  --ci-text-lg: 17px;
+  --ci-text-xl: 20px;
+  --ci-text-2xl: 22px;
+  --ci-text-3xl: 28px;
+  --ci-text-4xl: 34px;
+
+  --ci-weight-regular: 400;
+  --ci-weight-medium: 500;
+  /* SF 的 semibold 约 590；回退字体按整百近似，取 600 更稳。 */
+  --ci-weight-semibold: 600;
+  --ci-weight-bold: 700;
+
+  --ci-leading-tight: 1.2;
+  --ci-leading-snug: 1.35;
+  --ci-leading-normal: 1.5;
+  --ci-leading-relaxed: 1.65;
+
+  /* 字距：大字号收紧、小字号放宽。这是「看起来像 Apple」最省力也最关键的一条。 */
+  --ci-tracking-2xs: 0.012em;
+  --ci-tracking-xs: 0.007em;
+  --ci-tracking-sm: 0.004em;
+  --ci-tracking-base: 0em;
+  --ci-tracking-lg: -0.01em;
+  --ci-tracking-xl: -0.017em;
+  --ci-tracking-2xl: -0.022em;
+  --ci-tracking-3xl: -0.028em;
+  --ci-tracking-4xl: -0.031em;
+  /* 全大写小标题（英文场景）用的放宽字距，中文不要用。 */
+  --ci-tracking-caps: 0.06em;
+
+  /* ------------------------------------------------------------- 间距 4pt */
+  --ci-space-0: 0;
+  --ci-space-1: 4px;
+  --ci-space-2: 8px;
+  --ci-space-3: 12px;
+  --ci-space-4: 16px;
+  --ci-space-5: 20px;
+  --ci-space-6: 24px;
+  --ci-space-8: 32px;
+  --ci-space-10: 40px;
+  --ci-space-12: 48px;
+  --ci-space-16: 64px;
+
+  /* -------------------------------------------------------------- 圆角 */
+  /* Apple 用连续圆角（squircle），Web 上用偏大的圆角+系统字体近似这套观感。 */
+  --ci-radius-xs: 6px;
+  --ci-radius-sm: 8px;
+  --ci-radius-md: 10px;
+  --ci-radius-lg: 14px;
+  --ci-radius-xl: 18px;
+  --ci-radius-2xl: 24px;
+  --ci-radius-pill: 999px;
+
+  /* -------------------------------------------------------------- 中性色 */
+  --ci-gray-50: #f7f7f9;
+  --ci-gray-100: #f0f0f3;
+  --ci-gray-200: #e4e4e9;
+  --ci-gray-300: #d1d1d6;
+  --ci-gray-400: #aeaeb2;
+  --ci-gray-500: #8e8e93;
+  --ci-gray-600: #636366;
+  --ci-gray-700: #48484a;
+  --ci-gray-800: #2c2c2e;
+  --ci-gray-900: #1c1c1e;
+  --ci-gray-950: #121214;
+
+  /* ---------------------------------------------------------- 语义：面 */
+  --ci-color-bg: #f2f2f7;
+  --ci-color-surface: #ffffff;
+  --ci-color-surface-sunken: var(--ci-gray-50);
+  --ci-color-surface-translucent: rgb(255 255 255 / 72%);
+  --ci-color-overlay: rgb(0 0 0 / 28%);
+  --ci-color-border: rgb(60 60 67 / 14%);
+  --ci-color-border-strong: rgb(60 60 67 / 26%);
+  --ci-color-separator: rgb(60 60 67 / 9%);
+
+  /* --------------------------------------------------------- 语义：文字 */
+  --ci-color-text: rgb(0 0 0 / 88%);
+  --ci-color-text-secondary: rgb(60 60 67 / 64%);
+  --ci-color-text-tertiary: rgb(60 60 67 / 42%);
+  --ci-color-text-placeholder: rgb(60 60 67 / 32%);
+  --ci-color-text-inverse: #ffffff;
+
+  /* --------------------------------------------------------- 语义：强调 */
+  /* 蓝取 iOS 系统蓝；hover/pressed 在同色系内调整明度，不用透明度叠色（避免小字发灰）。 */
+  --ci-color-accent: #0a84ff;
+  --ci-color-accent-hover: #0a76e4;
+  --ci-color-accent-pressed: #0a68c9;
+  --ci-color-accent-soft: rgb(10 132 255 / 12%);
+  --ci-color-accent-contrast: #ffffff;
+
+  /* 侧栏图标按顶级模块分组配色：只用于图标，不改变正文语义色。 */
+  --ci-nav-tone-system: #0a84ff;
+  --ci-nav-tone-monitor: #248a3d;
+  --ci-nav-tone-tool: #b25000;
+  --ci-nav-tone-platform: #7c3aed;
+  --ci-nav-tone-notify: #c0266d;
+  --ci-nav-tone-neutral: var(--ci-color-text-tertiary);
+
+  --ci-color-success: #248a3d;
+  --ci-color-success-soft: rgb(36 138 61 / 12%);
+  --ci-color-warning: #b25000;
+  --ci-color-warning-soft: rgb(178 80 0 / 12%);
+  --ci-color-danger: #d70015;
+  --ci-color-danger-soft: rgb(215 0 21 / 12%);
+  --ci-color-info: #6b6b70;
+  --ci-color-info-soft: rgb(107 107 112 / 12%);
+
+  --ci-color-focus-ring: rgb(10 132 255 / 38%);
+
+  /* -------------------------------------------------------------- 阴影 */
+  /* 多层浅阴影：单层大模糊会显脏，叠两层才像系统的「抬起」。 */
+  --ci-shadow-1: 0 1px 2px rgb(0 0 0 / 4%), 0 1px 1px rgb(0 0 0 / 3%);
+  --ci-shadow-2: 0 2px 8px rgb(0 0 0 / 6%), 0 1px 2px rgb(0 0 0 / 4%);
+  --ci-shadow-3: 0 10px 28px rgb(0 0 0 / 10%), 0 2px 8px rgb(0 0 0 / 5%);
+  --ci-shadow-4: 0 24px 64px rgb(0 0 0 / 18%), 0 6px 20px rgb(0 0 0 / 8%);
+  --ci-shadow-field: inset 0 0 0 1px var(--ci-color-border-strong);
+  --ci-shadow-focus: 0 0 0 4px var(--ci-color-focus-ring);
+
+  /* -------------------------------------------------------------- 材料 */
+  /* 层级用「半透明 + 背景模糊」表达，而不是靠更重的阴影（半透明材料）。 */
+  --ci-material-blur: saturate(180%) blur(20px);
+  --ci-material-blur-thin: saturate(180%) blur(12px);
+  --ci-material-bg: var(--ci-color-surface-translucent);
+  --ci-material-border: rgb(255 255 255 / 55%);
+  --ci-material-shadow: var(--ci-shadow-3);
+
+  /* -------------------------------------------------------------- 动效 */
+  /* 默认临界阻尼：无过冲的平滑曲线，用于绝大多数状态变化。 */
+  --ci-ease-damped: cubic-bezier(0.32, 0.72, 0, 1);
+  --ci-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ci-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ci-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* 仅动量手势允许轻微过冲：拖拽甩出、抽屉回弹。列表与表单永不用它。 */
+  --ci-ease-momentum: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --ci-duration-instant: 80ms;
+  --ci-duration-fast: 160ms;
+  --ci-duration-base: 240ms;
+  --ci-duration-slow: 360ms;
+  --ci-duration-slower: 520ms;
+
+  --ci-transition-control:
+    background-color var(--ci-duration-fast) var(--ci-ease-out),
+    border-color var(--ci-duration-fast) var(--ci-ease-out),
+    color var(--ci-duration-fast) var(--ci-ease-out),
+    box-shadow var(--ci-duration-fast) var(--ci-ease-out);
+  --ci-transition-material:
+    opacity var(--ci-duration-base) var(--ci-ease-damped),
+    transform var(--ci-duration-base) var(--ci-ease-damped);
+
+  /* 按下反馈只做轻微缩放：位移会让密集表格显得在抖。 */
+  --ci-press-scale: 0.975;
+
+  /* -------------------------------------------------------------- 布局 */
+  --ci-layout-sidebar: 236px;
+  --ci-layout-sidebar-collapsed: 68px;
+  --ci-layout-header: 56px;
+  --ci-layout-content-max: 1480px;
+  --ci-layout-gutter: var(--ci-space-6);
+
+  --ci-z-content: 1;
+  --ci-z-sticky: 20;
+  --ci-z-sidebar: 30;
+  --ci-z-overlay: 2000;
+  --ci-z-toast: 3000;
+}
+
+/* --------------------------------------------------------------- 暗色 */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --ci-color-bg: var(--ci-gray-950);
+  --ci-color-surface: var(--ci-gray-900);
+  --ci-color-surface-sunken: #232326;
+  --ci-color-surface-translucent: rgb(28 28 30 / 72%);
+  --ci-color-overlay: rgb(0 0 0 / 55%);
+  --ci-color-border: rgb(255 255 255 / 12%);
+  --ci-color-border-strong: rgb(255 255 255 / 24%);
+  --ci-color-separator: rgb(255 255 255 / 8%);
+
+  --ci-color-text: rgb(255 255 255 / 92%);
+  --ci-color-text-secondary: rgb(235 235 245 / 62%);
+  --ci-color-text-tertiary: rgb(235 235 245 / 42%);
+  --ci-color-text-placeholder: rgb(235 235 245 / 30%);
+  --ci-color-text-inverse: var(--ci-gray-950);
+
+  /* 暗背景上的系统蓝要提亮一档，否则与背景对比不足。 */
+  --ci-color-accent: #409cff;
+  --ci-color-accent-hover: #5aa9ff;
+  --ci-color-accent-pressed: #78b8ff;
+  --ci-color-accent-soft: rgb(64 156 255 / 18%);
+  --ci-color-accent-contrast: #06121f;
+
+  /* 暗色下提亮，保持与背景的对比。 */
+  --ci-nav-tone-system: #409cff;
+  --ci-nav-tone-monitor: #3ddc84;
+  --ci-nav-tone-tool: #ffb340;
+  --ci-nav-tone-platform: #a78bfa;
+  --ci-nav-tone-notify: #f472b6;
+  --ci-nav-tone-neutral: var(--ci-color-text-tertiary);
+
+  --ci-color-success: #3ddc84;
+  --ci-color-success-soft: rgb(61 220 132 / 16%);
+  --ci-color-warning: #ffb340;
+  --ci-color-warning-soft: rgb(255 179 64 / 16%);
+  --ci-color-danger: #ff6b6b;
+  --ci-color-danger-soft: rgb(255 107 107 / 16%);
+  --ci-color-info: #a1a1a6;
+  --ci-color-info-soft: rgb(161 161 166 / 16%);
+
+  --ci-shadow-1: 0 1px 2px rgb(0 0 0 / 30%);
+  --ci-shadow-2: 0 2px 8px rgb(0 0 0 / 36%), 0 1px 2px rgb(0 0 0 / 28%);
+  --ci-shadow-3: 0 10px 28px rgb(0 0 0 / 45%), 0 2px 8px rgb(0 0 0 / 32%);
+  --ci-shadow-4: 0 24px 64px rgb(0 0 0 / 60%), 0 6px 20px rgb(0 0 0 / 40%);
+
+  --ci-material-border: rgb(255 255 255 / 9%);
+  --ci-color-focus-ring: rgb(64 156 255 / 42%);
+}
+
+/* ---------------------------------------------- 无障碍：减少动态效果 */
+/* 不是「关掉动效」，而是把时长压到 1ms：状态仍然切换，只是不再移动。 */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ci-duration-instant: 1ms;
+    --ci-duration-fast: 1ms;
+    --ci-duration-base: 1ms;
+    --ci-duration-slow: 1ms;
+    --ci-duration-slower: 1ms;
+    --ci-ease-momentum: linear;
+    --ci-press-scale: 1;
+  }
+}
+
+/* ---------------------------------------- 无障碍：减少透明度（材料降级） */
+/* 半透明+模糊对部分用户造成可读性问题；降级成全不透明表面，层级改由边框表达。 */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --ci-material-blur: none;
+    --ci-material-bg: var(--ci-color-surface);
+    --ci-material-border: var(--ci-color-border);
+    --ci-color-surface-translucent: var(--ci-color-surface);
+  }
+}
+
+/* ---------------------------------------------- 无障碍：增强对比 */
+@media (prefers-contrast: more) {
+  :root {
+    --ci-color-text-secondary: var(--ci-color-text);
+    --ci-color-text-tertiary: rgb(60 60 67 / 72%);
+    --ci-color-text-placeholder: rgb(60 60 67 / 62%);
+    --ci-color-border: rgb(60 60 67 / 42%);
+    --ci-color-border-strong: rgb(60 60 67 / 72%);
+    --ci-color-separator: rgb(60 60 67 / 30%);
+    --ci-color-focus-ring: rgb(10 132 255 / 60%);
+    /* 高对比模式改用边框而不是阴影表达层级（与系统「增强对比度」一致）。 */
+    --ci-shadow-1: none;
+    --ci-shadow-2: none;
+    --ci-shadow-3: none;
+    --ci-material-blur: none;
+    --ci-material-bg: var(--ci-color-surface);
+    --ci-material-border: var(--ci-color-border-strong);
+  }
+
+  :root[data-theme='dark'] {
+    --ci-color-text-tertiary: rgb(235 235 245 / 78%);
+    --ci-color-text-placeholder: rgb(235 235 245 / 68%);
+    --ci-color-border: rgb(255 255 255 / 40%);
+    --ci-color-border-strong: rgb(255 255 255 / 70%);
+    --ci-color-separator: rgb(255 255 255 / 28%);
+  }
+}

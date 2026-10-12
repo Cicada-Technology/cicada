@@ -1,0 +1,49 @@
+[package]
+name = "cicada"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "cicada 门面 crate：一把接入内核、能力层与接入层"
+
+[features]
+default = ["full"]
+# 开箱即用：任务运行时 + 框架迁移 + 代码生成器（公布的组合之一）。
+full = ["worker", "migrations", "codegen"]
+# 后台任务运行时（cron 触发 + apalis 队列执行）。不注册即不参与编译。
+worker = ["dep:cicada-worker", "dep:cicada-jobs"]
+# 框架自带的结构迁移与种子。使用者可只依赖框架迁移、自己另起 Migrator。
+migrations = ["dep:cicada-migrations"]
+# 代码生成器。
+codegen = ["dep:cicada-codegen"]
+
+[dependencies]
+# ---- L0/L1/L3/L4：门面 re-export（模板化机制机制 3：不想研究 crate 划分的人不必研究）----
+cicada-kernel = { workspace = true }
+cicada-infra = { workspace = true }
+cicada-ports = { workspace = true }
+cicada-auth = { workspace = true }
+cicada-rbac = { workspace = true }
+cicada-audit = { workspace = true }
+cicada-storage = { workspace = true }
+cicada-notify = { workspace = true }
+cicada-system = { workspace = true }
+cicada-monitor = { workspace = true }
+cicada-web = { workspace = true }
+cicada-codegen = { workspace = true, optional = true }
+cicada-jobs = { workspace = true, optional = true }
+cicada-worker = { workspace = true, optional = true }
+cicada-migrations = { workspace = true, optional = true }
+
+# ---- 使用者工程直接需要的生态 crate（避免每个项目各写一份版本）----
+axum = { workspace = true }
+sea-orm = { workspace = true }
+sea-orm-migration = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }

@@ -1,0 +1,278 @@
+/*!
+ * 基线样式：reset + 排版尺度 + 通用工具类。
+ * 只使用 tokens.css 里的令牌，不出现魔法值。
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+html {
+  /* 光学字号 + 系统字体的正确渲染。 */
+  font-optical-sizing: var(--ci-font-optical-sizing);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--ci-font-sans);
+  font-size: var(--ci-text-base);
+  font-weight: var(--ci-weight-regular);
+  line-height: var(--ci-leading-normal);
+  letter-spacing: var(--ci-tracking-base);
+  color: var(--ci-color-text);
+  background-color: var(--ci-color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 数字在表格里必须等宽，否则列会随数值跳动。 */
+  font-variant-numeric: proportional-nums;
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--ci-color-accent);
+  text-decoration: none;
+  transition: color var(--ci-duration-fast) var(--ci-ease-out);
+}
+
+a:hover {
+  color: var(--ci-color-accent-hover);
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* 键盘焦点才有焦点环：鼠标点击不显示，避免密集界面到处是环。 */
+:focus-visible {
+  outline: 2px solid var(--ci-color-accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--ci-color-accent-soft);
+  color: var(--ci-color-text);
+}
+
+/* 滚动条：系统细滚动条，不再画一层自定义轨道。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ci-color-border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--ci-color-border-strong);
+  border: 3px solid transparent;
+  border-radius: var(--ci-radius-pill);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ci-color-text-tertiary);
+}
+
+/* ------------------------------------------------------------ 排版尺度 */
+/* 大字号收紧、小字号放宽；行高随字号变小而放宽，都是 Apple 的排版观感。 */
+.ci-text-2xs {
+  font-size: var(--ci-text-2xs);
+  line-height: var(--ci-leading-normal);
+  letter-spacing: var(--ci-tracking-2xs);
+}
+
+.ci-text-xs {
+  font-size: var(--ci-text-xs);
+  line-height: var(--ci-leading-normal);
+  letter-spacing: var(--ci-tracking-xs);
+}
+
+.ci-text-sm {
+  font-size: var(--ci-text-sm);
+  line-height: var(--ci-leading-snug);
+  letter-spacing: var(--ci-tracking-sm);
+}
+
+.ci-text-base {
+  font-size: var(--ci-text-base);
+  line-height: var(--ci-leading-normal);
+  letter-spacing: var(--ci-tracking-base);
+}
+
+.ci-title {
+  font-size: var(--ci-text-lg);
+  font-weight: var(--ci-weight-semibold);
+  line-height: var(--ci-leading-tight);
+  letter-spacing: var(--ci-tracking-lg);
+}
+
+.ci-title-lg {
+  font-size: var(--ci-text-2xl);
+  font-weight: var(--ci-weight-semibold);
+  line-height: var(--ci-leading-tight);
+  letter-spacing: var(--ci-tracking-2xl);
+}
+
+/* 英文全大写小标题（如侧栏分组）；中文场景不要用，字距会显得散。 */
+.ci-caps {
+  font-size: var(--ci-text-2xs);
+  font-weight: var(--ci-weight-semibold);
+  line-height: var(--ci-leading-normal);
+  letter-spacing: var(--ci-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ci-color-text-tertiary);
+}
+
+/* -------------------------------------------------------------- 工具类 */
+.ci-mono {
+  font-family: var(--ci-font-mono);
+  font-size: var(--ci-text-sm);
+}
+
+/* 表格里的数字、时间、ID 用它对齐。 */
+.ci-numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.ci-secondary {
+  color: var(--ci-color-text-secondary);
+}
+
+.ci-tertiary {
+  color: var(--ci-color-text-tertiary);
+}
+
+.ci-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ci-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ci-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ci-space-4);
+}
+
+.ci-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ci-space-2);
+}
+
+.ci-wrap {
+  flex-wrap: wrap;
+}
+
+.ci-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 半透明材料：表达浮层层级。 */
+.ci-material {
+  background: var(--ci-material-bg);
+  border: 1px solid var(--ci-material-border);
+  box-shadow: var(--ci-material-shadow);
+  backdrop-filter: var(--ci-material-blur);
+  -webkit-backdrop-filter: var(--ci-material-blur);
+}
+
+.ci-card {
+  background: var(--ci-color-surface);
+  border: 1px solid var(--ci-color-separator);
+  border-radius: var(--ci-radius-lg);
+  box-shadow: var(--ci-shadow-1);
+}
+
+/* ---------------------------------------------------------- 页面容器 */
+/* 代码生成器产出的页面根节点就是 `.app-container`，这里给它们统一的呼吸感。 */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ci-space-4);
+}
+
+.app-container > .el-form--inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ci-space-2) var(--ci-space-3);
+  padding: var(--ci-space-4);
+  background: var(--ci-color-surface);
+  border: 1px solid var(--ci-color-separator);
+  border-radius: var(--ci-radius-lg);
+}
+
+/* 生成器页面里的查询项自带 inline style 宽度，这里保证它们在窄屏能换行。 */
+.app-container > .el-form--inline .el-form-item {
+  margin: 0;
+}
+
+.app-container > .el-table {
+  background: var(--ci-color-surface);
+  border: 1px solid var(--ci-color-separator);
+  border-radius: var(--ci-radius-lg);
+  overflow: hidden;
+}
+
+.app-container > .el-pagination {
+  justify-content: flex-end;
+}
